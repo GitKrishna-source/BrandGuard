@@ -54,6 +54,35 @@ export interface TextAuditResponse {
   wordCount: number;
 }
 
+export interface BrandPolicyResponse {
+  id: string;
+  name: string;
+  guidelines: string[];
+  approved_facts: string[];
+  banned_terms: string[];
+  approved_terms: Record<string, string>;
+  created_at: string;
+}
+
+export interface ApiFinding {
+  category: string;
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+  evidence: string;
+  suggestion: string;
+  source: string;
+}
+
+export interface ApiAuditResponse {
+  id: string;
+  policy_id: string;
+  content_type: string;
+  score: number;
+  status: string;
+  findings: ApiFinding[];
+  created_at: string;
+}
+
 export interface ImageAuditResponse {
   score: number;
   primaryPaletteMatch: string;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   X, 
   Upload, 
@@ -14,14 +14,18 @@ import {
 } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import type { ImageAuditResponse, ModalProps, TextAuditResponse } from '../../types';
+import { createTextAudit } from '../../lib/api';
 
-export default function AuditModal({ isOpen, onClose }: ModalProps) {
+interface AuditModalProps extends ModalProps { policyId: string | null; initialText?: string }
+
+export default function AuditModal({ isOpen, onClose, policyId, initialText }: AuditModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
-    'Our company offers the cheapest cloud hosting in the world. We are guaranteed 100% bug-free with infinite scalability. Contact our customer support rep today!'
+    initialText || 'Our company offers the cheapest cloud hosting in the world. We are guaranteed 100% bug-free with infinite scalability. Contact our customer support rep today!'
   );
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<TextAuditResponse | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Image tab states
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -31,65 +35,48 @@ export default function AuditModal({ isOpen, onClose }: ModalProps) {
   // Document tab states
   const [docName, setDocName] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (initialText) setCustomText(initialText);
+  }, [initialText]);
+
   if (!isOpen) return null;
 
-  const runTextAudit = () => {
+  const runTextAudit = async () => {
+    if (!policyId) {
+      setApiError('Brand policy is still loading. Start the audit again in a moment.');
+      return;
+    }
+
     setIsAuditing(true);
-    setTimeout(() => {
-      const findings = [];
-      let score = 95;
-
-      if (customText.toLowerCase().includes('cheapest') || customText.toLowerCase().includes('cheap')) {
-        score -= 15;
-        findings.push({
-          type: 'Tone & Lexicon Drift',
-          severity: 'Medium',
-          quote: 'cheapest',
-          explanation: 'Violates Brand Dignity Standard §2.1. Brand positioning forbids low-end price discounting language.',
-          suggestedFix: 'most cost-effective / enterprise-value-driven'
-        });
-      }
-
-      if (customText.toLowerCase().includes('100% bug-free') || customText.toLowerCase().includes('guaranteed 100%') || customText.toLowerCase().includes('infinite')) {
-        score -= 25;
-        findings.push({
-          type: 'Legal Liability Breach',
-          severity: 'Critical',
-          quote: 'guaranteed 100% bug-free',
-          explanation: 'Absolute guarantee creates legal indemnification liability under General Counsel Directive §14.',
-          suggestedFix: 'engineered for 99.99% high availability and resilient uptime SLAs'
-        });
-      }
-
-      if (customText.toLowerCase().includes('customer support rep')) {
-        score -= 12;
-        findings.push({
-          type: 'Restricted Nomenclature',
-          severity: 'Low',
-          quote: 'customer support rep',
-          explanation: 'Nomenclature Directive #19 mandates Enterprise Success taxonomy.',
-          suggestedFix: 'Brand Success Specialist'
-        });
-      }
-
-      if (findings.length === 0) {
-        findings.push({
-          type: 'Brand Compliance',
-          severity: 'Clean',
-          quote: 'All text compliant',
-          explanation: 'Text conforms to Global Enterprise Standard v2.4, tone guidelines, and verified collateral.',
-          suggestedFix: 'Ready to publish without modification'
-        });
-      }
-
+    setApiError(null);
+    try {
+      const response = await createTextAudit(policyId, customText);
+      const findings = response.findings.length > 0
+        ? response.findings.map((finding) => ({
+            type: finding.category,
+            severity: finding.severity === 'high' ? 'Critical' : finding.severity === 'medium' ? 'Medium' : 'Low',
+            quote: finding.evidence,
+            explanation: `${finding.message} Source: ${finding.source}`,
+            suggestedFix: finding.suggestion,
+          }))
+        : [{
+            type: 'Brand Compliance',
+            severity: 'Clean',
+            quote: 'All text compliant',
+            explanation: 'The API found no policy violations in this content.',
+            suggestedFix: 'Ready to publish without modification',
+          }];
       setAuditResult({
-        score: Math.max(score, 45),
+        score: response.score,
         findings,
-        tone: 'Informative & Promotional',
-        wordCount: customText.split(/\s+/).filter(Boolean).length
+        tone: response.status === 'approved' ? 'Compliant' : 'Requires Review',
+        wordCount: customText.split(/\s+/).filter(Boolean).length,
       });
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Unable to complete the audit.');
+    } finally {
       setIsAuditing(false);
-    }, 600);
+    }
   };
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -239,13 +226,19 @@ export default function AuditModal({ isOpen, onClose }: ModalProps) {
 
               <button
                 onClick={runTextAudit}
-                disabled={isAuditing}
+                disabled={isAuditing || !policyId}
                 className="px-5 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>{isAuditing ? 'Analyzing Content...' : 'Run Real-Time AI Audit'}</span>
+                <span>{isAuditing ? 'Analyzing Content...' : !policyId ? 'Connecting to API...' : 'Run Real-Time AI Audit'}</span>
               </button>
             </div>
+
+            {apiError && (
+              <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300">
+                {apiError}
+              </div>
+            )}
 
             {/* Results */}
             {auditResult && (

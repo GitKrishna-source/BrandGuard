@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import LiveAuditStudio from './components/LiveAuditStudio';
@@ -15,6 +15,8 @@ import ExportReportModal from './components/modals/ExportReportModal';
 import SignInModal from './components/modals/SignInModal';
 
 import { PRESETS } from './data/presets';
+import { BRAND_VAULT } from './data/brandVault';
+import { createPolicy, listPolicies } from './lib/api';
 import type { Role } from './types';
 
 export default function App() {
@@ -26,6 +28,34 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState<Role>('creator');
+  const [policyId, setPolicyId] = useState<string | null>(null);
+  const [auditQuery, setAuditQuery] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadPolicy = async () => {
+      try {
+        const policies = await listPolicies();
+        if (policies[0]) {
+          if (isMounted) setPolicyId(policies[0].id);
+          return;
+        }
+
+        const policy = await createPolicy({
+          name: `${BRAND_VAULT.company} default policy`,
+          guidelines: BRAND_VAULT.toneArchetypes.map((tone) => `${tone.attribute}: ${tone.description}`),
+          approved_facts: BRAND_VAULT.verifiedFacts.map((fact) => fact.verifiedData),
+          banned_terms: BRAND_VAULT.bannedLexicon.map((term) => term.forbidden),
+          approved_terms: Object.fromEntries(BRAND_VAULT.bannedLexicon.map((term) => [term.forbidden, term.approved])),
+        });
+        if (isMounted) setPolicyId(policy.id);
+      } catch (error) {
+        console.error('Unable to connect to BrandGuard API', error);
+      }
+    };
+    void loadPolicy();
+    return () => { isMounted = false; };
+  }, []);
 
   // Find active preset object
   const activePreset = PRESETS.find((p) => p.id === activePresetId) || PRESETS[0];
@@ -38,8 +68,8 @@ export default function App() {
     }
   };
 
-  const handleScanQuery = (_query: string) => {
-    // If user enters custom claim, open live audit studio modal to test custom text
+  const handleScanQuery = (query: string) => {
+    setAuditQuery(query);
     setIsAuditModalOpen(true);
   };
 
@@ -103,6 +133,8 @@ export default function App() {
       <AuditModal
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
+        policyId={policyId}
+        initialText={auditQuery || undefined}
       />
 
       <BrandVaultModal
