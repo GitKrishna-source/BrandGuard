@@ -2,6 +2,17 @@
 
 FastAPI service for brand policies, explainable content audits, and human reviews.
 
+In the frontend, open **Brand Vault** as a manager or legal reviewer to edit the active policy.
+Use exact approved sentences for facts, and guideline entries such as
+`tone: cheap => cost-effective`, `messaging: old name => current name`, or
+`palette: #112233, #FFFFFF`. The audit engine applies explicit rules locally without sending
+drafts to an external AI provider. Text and extracted excerpts are stored for review.
+Image palette matching is approximate and visual accessibility still needs manual review.
+
+Creators can access their own new audits. Reviewers can access the shared workspace audit queue,
+including older audits without an owner. High-severity approvals require the legal role.
+Approval is recorded in BrandGuard and does not publish to a CMS.
+
 ## Local development
 
 ```powershell

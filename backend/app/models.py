@@ -43,3 +43,14 @@ class Review(Base):
     status: Mapped[str] = mapped_column(String(32), default="pending")
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Revision(Base):
+    __tablename__ = "revisions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    parent_audit_id: Mapped[str] = mapped_column(ForeignKey("audits.id"), index=True)
+    audit_id: Mapped[str] = mapped_column(ForeignKey("audits.id"), unique=True, index=True)
+    author: Mapped[str] = mapped_column(String(160))
+    summary: Mapped[str] = mapped_column(String(240), default="Content revised and re-audited")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

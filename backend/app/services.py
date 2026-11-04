@@ -2,7 +2,7 @@ import re
 from io import BytesIO
 
 from docx import Document
-from PIL import Image
+from PIL import Image, ImageColor
 from pypdf import PdfReader
 
 from .models import BrandPolicy
@@ -35,24 +35,37 @@ def audit_text(content: str, policy: BrandPolicy) -> tuple[int, list[Finding]]:
         r"\b(best|cheapest|#1)\b",
         r"\b(up to|over)\s+\d+(?:\.\d+)?x\b",
     ]
-    for pattern in promotional_patterns:
-        match = re.search(pattern, content, flags=re.IGNORECASE)
-        if match:
-            evidence = match.group(0)
-            findings.append(
-                Finding(
-                    category="unsupported_claim",
-                    severity="high",
-                    message="Promotional claim requires approved evidence before publication.",
-                    evidence=evidence,
-                    suggestion="Attach a verified source or soften the claim to a measurable, qualified statement.",
-                    source="BrandGuard claim verification rule",
-                )
-            )
-
-    for fact in policy.approved_facts or []:
-        if fact.lower() in lower_content:
+    promotional_patterns += [r"\b\d+(?:\.\d+)?x\s+faster\b", r"\$\d+(?:\.\d+)?\s*(?:million|billion|[mb]\b)?"]
+    approved = {" ".join(fact.casefold().split()) for fact in policy.approved_facts or []}
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", content):
+        if " ".join(sentence.casefold().split()).rstrip(".") in {fact.rstrip(".") for fact in approved}:
             continue
+        for pattern in promotional_patterns:
+            match = re.search(pattern, sentence, flags=re.IGNORECASE)
+            if match:
+                findings.append(Finding(
+                    category="unsupported_claim", severity="high",
+                    message="This statement does not match an approved fact.",
+                    evidence=match.group(0),
+                    suggestion="Cite an approved source or replace the claim with a verified statement.",
+                    source=f"{policy.name} / Approved facts",
+                ))
+    for rule in policy.guidelines or []:
+        kind, _, body = rule.partition(":")
+        phrase, separator, replacement = body.partition("=>")
+        if kind.lower() not in {"tone", "messaging"} or not separator or not phrase.strip():
+            continue
+        if re.search(r"(?<!\w)" + re.escape(phrase.strip()) + r"(?!\w)", content, re.IGNORECASE):
+            findings.append(Finding(
+                category=kind.lower(), severity="medium", message="Draft wording conflicts with this guideline.",
+                evidence=phrase.strip(), suggestion=replacement.strip(), source=f"{policy.name} / {rule}",
+            ))
+    for match in re.finditer(r"!\[\s*\]\([^)]+\)", content):
+        findings.append(Finding(
+            category="accessibility", severity="low", message="Markdown image has empty alternative text.",
+            evidence=match.group(0), suggestion="Describe the image’s purpose if it conveys information.",
+            source="BrandGuard Markdown accessibility check",
+        ))
 
     score = max(0, 100 - sum(20 if f.severity == "high" else 10 for f in findings))
     return score, findings
@@ -64,13 +77,25 @@ def extract_document_text(filename: str, data: bytes) -> str:
         return "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(data)).pages)
     if suffix == "docx":
         return "\n".join(paragraph.text for paragraph in Document(BytesIO(data)).paragraphs)
-    return data.decode("utf-8", errors="replace")
+    if suffix not in {"txt", "md"}:
+        raise ValueError("Unsupported document format")
+    return data.decode("utf-8-sig")
 
 
 def audit_uploaded_file(filename: str, media_type: str | None, data: bytes, policy: BrandPolicy):
     if (media_type or "").startswith("image/"):
         image = Image.open(BytesIO(data))
         width, height = image.size
+        if width * height > 20_000_000:
+            raise ValueError("Image is too large to analyze")
+        image.thumbnail((96, 96))
+        colors = image.convert("RGB").quantize(colors=5).convert("RGB").getcolors()
+        palette = [
+            ImageColor.getrgb(value.strip()) for line in policy.guidelines or []
+            if line.lower().startswith("palette:")
+            for value in line.split(":", 1)[1].split(",")
+            if re.fullmatch(r"#[0-9a-fA-F]{6}", value.strip())
+        ]
         findings = [
             Finding(
                 category="visual_consistency",
@@ -81,8 +106,20 @@ def audit_uploaded_file(filename: str, media_type: str | None, data: bytes, poli
                 source=f"Brand policy: {policy.name}",
             )
         ]
-        return 85, findings, ""
+        if palette and colors:
+            _, dominant = max(colors)
+            if min(sum((a - b) ** 2 for a, b in zip(dominant, color)) for color in palette) > 3600:
+                findings.append(Finding(
+                    category="visual_consistency", severity="medium",
+                    message="The dominant sampled color falls outside the approved palette.",
+                    evidence="#{:02x}{:02x}{:02x}".format(*dominant),
+                    suggestion="Use an approved color for dominant brand elements and review photographic exceptions.",
+                    source=f"{policy.name} / Palette",
+                ))
+        return max(0, 100 - 10 * len(findings)), findings, ""
 
     content = extract_document_text(filename, data)
+    if not content.strip():
+        raise ValueError("No extractable text")
     score, findings = audit_text(content, policy)
     return score, findings, content[:4000]

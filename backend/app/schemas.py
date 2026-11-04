@@ -19,6 +19,14 @@ class BrandPolicyResponse(BrandPolicyCreate):
     model_config = {"from_attributes": True}
 
 
+class BrandPolicyUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    guidelines: list[str] | None = None
+    approved_facts: list[str] | None = None
+    banned_terms: list[str] | None = None
+    approved_terms: dict[str, str] | None = None
+
+
 class AuditCreate(BaseModel):
     policy_id: str
     content_type: Literal["text", "document", "image"] = "text"
@@ -42,7 +50,48 @@ class AuditResponse(BaseModel):
     status: str
     findings: list[Finding]
     content_preview: str | None = None
+    analysis_engine: str = "BrandGuard deterministic policy engine"
+    data_handling: str = "No external AI service receives drafts. Draft text or excerpts and results are retained."
+    parent_audit_id: str | None = None
     created_at: datetime
+
+
+class RevisionCreate(BaseModel):
+    content: str = Field(min_length=1)
+    summary: str = Field(default="Content revised and re-audited", max_length=240)
+
+
+class RevisionResponse(BaseModel):
+    id: str
+    parent_audit_id: str
+    audit_id: str
+    author: str
+    summary: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ViolationInsight(BaseModel):
+    category: str
+    occurrences: int
+    severity: str
+
+
+class ContentTypeInsight(BaseModel):
+    content_type: str
+    audits: int
+    average_score: int
+
+
+class GovernanceInsights(BaseModel):
+    total_audits: int
+    flagged_audits: int
+    intercept_rate: int
+    average_score: int
+    top_violations: list[ViolationInsight]
+    content_types: list[ContentTypeInsight]
+    unclear_guidelines: list[str]
 
 
 class ReviewCreate(BaseModel):

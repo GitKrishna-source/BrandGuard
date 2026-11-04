@@ -28,6 +28,7 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(() => !getAccessToken());
   const [currentRole, setCurrentRole] = useState<Role>('creator');
+  const [selectedRole, setSelectedRole] = useState<Role>('creator');
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
   const [policyId, setPolicyId] = useState<string | null>(null);
   const [auditQuery, setAuditQuery] = useState('');
@@ -73,7 +74,10 @@ export default function App() {
 
   const handleSignIn = async (role: Role, username: string, password: string) => {
     const response = await login(username, password);
-    if (response.user.role !== role) throw new Error('Selected persona does not match this account.');
+    setLatestAudit(null);
+    setIsAuditModalOpen(false);
+    setIsApprovalsModalOpen(false);
+    setIsGovernanceModalOpen(false);
     setCurrentRole(response.user.role);
     setIsAuthenticated(true);
     setIsSignInModalOpen(false);
@@ -157,6 +161,7 @@ export default function App() {
 
       {/* Interactive Modals */}
       <AuditModal
+        key={currentRole}
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
         policyId={policyId}
@@ -165,6 +170,8 @@ export default function App() {
       />
 
       <BrandVaultModal
+        policyId={policyId}
+        currentRole={currentRole}
         isOpen={isVaultModalOpen}
         onClose={() => setIsVaultModalOpen(false)}
       />
@@ -172,8 +179,6 @@ export default function App() {
       <ApprovalsModal
         isOpen={isApprovalsModalOpen}
         onClose={() => setIsApprovalsModalOpen(false)}
-        currentDocTitle={latestAudit ? `API Audit ${latestAudit.id}` : activePreset.workspace}
-        readinessScore={latestAudit?.score ?? 100}
         auditId={latestAudit?.id}
         reviewerRole={currentRole}
       />
@@ -192,8 +197,8 @@ export default function App() {
       <SignInModal
         isOpen={isSignInModalOpen}
         onClose={() => setIsSignInModalOpen(false)}
-        currentRole={currentRole}
-        onSelectRole={(r: Role) => setCurrentRole(r)}
+        currentRole={selectedRole}
+        onSelectRole={setSelectedRole}
         onSignIn={handleSignIn}
       />
     </div>

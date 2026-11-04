@@ -1,4 +1,4 @@
-import type { ApiAuditResponse, AuthUser, BrandPolicyResponse, LoginResponse, ReviewResponse, Role } from '../types';
+import type { ApiAuditResponse, AuthUser, BrandPolicyResponse, GovernanceInsightsResponse, LoginResponse, ReviewResponse, Role } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const TOKEN_KEY = 'brandguard_access_token';
@@ -53,11 +53,37 @@ export function createPolicy(policy: Omit<BrandPolicyResponse, 'id' | 'created_a
   });
 }
 
+export function updatePolicy(policyId: string, policy: Partial<Omit<BrandPolicyResponse, 'id' | 'created_at'>>): Promise<BrandPolicyResponse> {
+  return request<BrandPolicyResponse>(`/api/policies/${policyId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(policy),
+  });
+}
+
 export function createTextAudit(policyId: string, content: string): Promise<ApiAuditResponse> {
   return request<ApiAuditResponse>('/api/audits', {
     method: 'POST',
     body: JSON.stringify({ policy_id: policyId, content_type: 'text', content }),
   });
+}
+
+export function createRevision(auditId: string, content: string): Promise<ApiAuditResponse> {
+  return request<ApiAuditResponse>(`/api/audits/${auditId}/revisions`, {
+    method: 'POST',
+    body: JSON.stringify({ content, summary: 'Creator revised content after explainable findings' }),
+  });
+}
+
+export function getGovernanceInsights(): Promise<GovernanceInsightsResponse> {
+  return request<GovernanceInsightsResponse>('/api/insights');
+}
+
+export function listAudits(): Promise<ApiAuditResponse[]> {
+  return request('/api/audits');
+}
+
+export function listReviews(id: string): Promise<ReviewResponse[]> {
+  return request(`/api/audits/${id}/reviews`);
 }
 
 export function uploadAudit(policyId: string, file: File): Promise<ApiAuditResponse> {

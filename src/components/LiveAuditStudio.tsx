@@ -431,7 +431,7 @@ export default function LiveAuditStudio({
                 }`}
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{canApprove ? 'Approve & Push to CMS' : 'Request Manager Review'}</span>
+                <span>{canApprove ? 'Open Review Queue' : 'Open My Reviews'}</span>
               </button>
             </div>
           </div>

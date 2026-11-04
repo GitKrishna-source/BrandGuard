@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import type { ApiAuditResponse, ImageAuditResponse, ModalProps, TextAuditResponse } from '../../types';
-import { createTextAudit, uploadAudit } from '../../lib/api';
+import { createRevision, createTextAudit, uploadAudit } from '../../lib/api';
 
 interface AuditModalProps extends ModalProps {
   policyId: string | null;
@@ -30,6 +30,8 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<TextAuditResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [currentAuditId, setCurrentAuditId] = useState<string | null>(null);
+  const [dataHandling, setDataHandling] = useState<string | null>(null);
 
   // Image tab states
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -40,7 +42,11 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
   const [docName, setDocName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialText) setCustomText(initialText);
+    if (initialText) {
+      setCustomText(initialText);
+      setCurrentAuditId(null);
+      setAuditResult(null);
+    }
   }, [initialText]);
 
   if (!isOpen) return null;
@@ -57,7 +63,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
       : [{
           type: 'Brand Compliance', severity: 'Clean', quote: 'All text compliant',
           explanation: 'The API found no policy violations in this content.',
-          suggestedFix: 'Ready to publish without modification',
+          suggestedFix: 'Send the draft for human review.',
         }];
     setAuditResult({
       score: response.score,
@@ -66,6 +72,8 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
       wordCount: (response.content_preview || customText).split(/\s+/).filter(Boolean).length,
     });
     onAuditComplete(response);
+    setCurrentAuditId(response.id);
+    setDataHandling(response.data_handling || null);
   };
 
   const runTextAudit = async () => {
@@ -77,7 +85,9 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
     setIsAuditing(true);
     setApiError(null);
     try {
-      const response = await createTextAudit(policyId, customText);
+      const response = currentAuditId
+        ? await createRevision(currentAuditId, customText)
+        : await createTextAudit(policyId, customText);
       applyApiAudit(response);
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Unable to complete the audit.');
@@ -111,6 +121,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
             })),
           });
           onAuditComplete(response);
+          setDataHandling(response.data_handling || null);
         })
         .catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to audit image.'))
         .finally(() => setIsAuditing(false));
@@ -247,13 +258,19 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                 className="px-5 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>{isAuditing ? 'Analyzing Content...' : !policyId ? 'Connecting to API...' : 'Run Real-Time AI Audit'}</span>
+                <span>{isAuditing ? 'Analyzing Content...' : !policyId ? 'Connecting to API...' : currentAuditId ? 'Save Revision & Re-audit' : 'Run Policy Audit'}</span>
               </button>
             </div>
 
             {apiError && (
               <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300">
                 {apiError}
+              </div>
+            )}
+
+            {dataHandling && (
+              <div className="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-3 text-[11px] font-mono text-slate-400">
+                AI disclosure: deterministic policy checks are used in this build. {dataHandling}
               </div>
             )}
 
@@ -271,7 +288,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                   </div>
 
                   <span className="text-xs font-mono text-slate-400">
-                    Tone: <strong className="text-cyan-300">{auditResult.tone}</strong>
+                    Workflow: <strong className="text-cyan-300">{auditResult.tone}</strong>
                   </span>
                 </div>
 
@@ -327,7 +344,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                   Upload Creative Asset, Banner, or Ad Image
                 </h4>
                 <p className="text-xs text-slate-400 font-mono mb-4">
-                  PNG, JPG, WebP, SVG up to 25MB
+                  PNG, JPG or WebP up to 10 MB
                 </p>
                 <span className="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 rounded-lg border border-slate-700">
                   Select Image File
@@ -363,7 +380,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                     </div>
                   ) : (
                     <div className="text-xs font-mono text-cyan-400 animate-pulse">
-                      Analyzing pixel color histogram and logo placement...
+                      {apiError || 'Waiting for visual policy results…'}
                     </div>
                   )}
                 </div>
@@ -378,7 +395,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
             <div className="border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-2xl p-8 text-center transition-all bg-[#080d19]">
               <input
                 type="file"
-                accept=".pdf,.docx,.doc,.txt,.md"
+                accept=".pdf,.docx,.txt,.md"
                 id="doc-upload-input"
                 className="hidden"
                 onChange={handleDocUpload}

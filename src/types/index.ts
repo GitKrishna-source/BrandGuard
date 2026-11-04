@@ -81,7 +81,20 @@ export interface ApiAuditResponse {
   status: string;
   findings: ApiFinding[];
   content_preview?: string;
+  analysis_engine?: string;
+  parent_audit_id?: string | null;
+  data_handling?: string;
   created_at: string;
+}
+
+export interface GovernanceInsightsResponse {
+  total_audits: number;
+  flagged_audits: number;
+  intercept_rate: number;
+  average_score: number;
+  top_violations: Array<{ category: string; occurrences: number; severity: string }>;
+  content_types: Array<{ content_type: string; audits: number; average_score: number }>;
+  unclear_guidelines: string[];
 }
 
 export interface ReviewResponse {

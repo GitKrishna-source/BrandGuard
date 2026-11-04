@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   X, 
   Database, 
@@ -12,11 +12,43 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { BRAND_VAULT } from '../../data/brandVault';
-import type { ModalProps } from '../../types';
+import type { ModalProps, Role } from '../../types';
+import { listPolicies, updatePolicy } from '../../lib/api';
 
-export default function BrandVaultModal({ isOpen, onClose }: ModalProps) {
+export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole }: ModalProps & { policyId: string | null; currentRole: Role }) {
   const [activeTab, setActiveTab] = useState('colors'); // 'colors' | 'facts' | 'lexicon' | 'tone'
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
+  const [policyDraft, setPolicyDraft] = useState('');
+  const [status, setStatus] = useState('');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!isOpen || !policyId) return;
+    let active = true;
+    setPolicyDraft('');
+    setStatus('');
+    listPolicies().then((rows) => {
+      if (!active) return;
+      const policy = rows.find((row) => row.id === policyId);
+      if (!policy) return;
+      const { guidelines, approved_facts, banned_terms, approved_terms } = policy;
+      setPolicyDraft(JSON.stringify({ guidelines, approved_facts, banned_terms, approved_terms }, null, 2));
+    }).catch((error: Error) => { if (active) setStatus(error.message); });
+    return () => { active = false; };
+  }, [isOpen, policyId]);
+
+  async function savePolicy() {
+    if (!policyId) return;
+    setSaving(true);
+    try {
+      const { guidelines, approved_facts, banned_terms, approved_terms } = JSON.parse(policyDraft);
+      await updatePolicy(policyId, { guidelines, approved_facts, banned_terms, approved_terms });
+      setStatus('Saved. New audits will use this policy.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not save policy.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (!isOpen) return null;
 
@@ -54,6 +86,14 @@ export default function BrandVaultModal({ isOpen, onClose }: ModalProps) {
           </button>
         </div>
 
+        <section className="space-y-3 p-5">
+          <h3 className="font-semibold">Active audit policy</h3>
+          <p className="text-xs text-slate-400">Use exact approved statements for facts. Actionable guidelines use <code>tone: phrase =&gt; replacement</code>, <code>messaging: phrase =&gt; replacement</code>, or <code>palette: #112233, #FFFFFF</code>.</p>
+          <textarea aria-label="Active policy JSON" className="min-h-40 w-full rounded-lg bg-slate-950 p-3 font-mono text-xs" value={policyDraft} readOnly={currentRole === 'creator'} onChange={(event) => setPolicyDraft(event.target.value)} />
+          {currentRole !== 'creator' && <button className="rounded bg-cyan-400 px-4 py-2 text-sm text-slate-950" disabled={saving || !policyDraft} onClick={() => void savePolicy()}>Save policy</button>}
+          <p role="status">{status}</p>
+        </section>
+        <p className="px-5 text-sm text-slate-400">Sample brand reference below</p>
         {/* Tabs */}
         <div className="flex border-b border-slate-800 bg-[#080d19] px-5 pt-3 gap-2 overflow-x-auto">
           <button
@@ -233,7 +273,7 @@ export default function BrandVaultModal({ isOpen, onClose }: ModalProps) {
 
         {/* Modal Footer */}
         <div className="p-4 bg-[#0a101f] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
-          <span>Synced with Notion Brand Hub & Figma Design Tokens</span>
+          <span>Policies are stored in BrandGuard.</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
