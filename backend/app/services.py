@@ -1,12 +1,19 @@
 import re
+import base64
+import json
 from io import BytesIO
+from typing import Any
 
+import httpx
 from docx import Document
 from PIL import Image, ImageColor
 from pypdf import PdfReader
 
 from .models import BrandPolicy
 from .schemas import Finding
+from .config import get_settings
+
+settings = get_settings()
 
 
 def audit_text(content: str, policy: BrandPolicy) -> tuple[int, list[Finding]]:
@@ -71,6 +78,55 @@ def audit_text(content: str, policy: BrandPolicy) -> tuple[int, list[Finding]]:
     return score, findings
 
 
+def _policy_prompt(policy: BrandPolicy) -> str:
+    return json.dumps({
+        "name": policy.name,
+        "guidelines": policy.guidelines or [],
+        "approved_facts": policy.approved_facts or [],
+        "banned_terms": policy.banned_terms or [],
+        "approved_terms": policy.approved_terms or {},
+    }, ensure_ascii=False)
+
+
+def _gemini_request(prompt: str, image: tuple[str, bytes] | None = None) -> tuple[int, list[Finding]]:
+    parts: list[dict[str, Any]] = [{"text": prompt}]
+    if image:
+        media_type, data = image
+        parts.append({"inline_data": {"mime_type": media_type, "data": base64.b64encode(data).decode("ascii")}})
+    response = httpx.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent",
+        headers={"x-goog-api-key": settings.gemini_api_key or "", "Content-Type": "application/json"},
+        json={
+            "contents": [{"parts": parts}],
+            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2500, "responseMimeType": "application/json"},
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+    result = json.loads(text)
+    findings = [Finding(**finding) for finding in result.get("findings", [])]
+    score = max(0, min(100, int(result.get("score", 100))))
+    return score, findings
+
+
+def audit_text_with_provider(content: str, policy: BrandPolicy) -> tuple[int, list[Finding], str]:
+    if settings.gemini_api_key:
+        prompt = f"""You are BrandGuard, an explainable brand-governance reviewer.
+Review the draft against the policy below. Preserve creator intent. Find tone, terminology,
+messaging, accessibility, factual, and unsupported promotional-claim issues.
+Return JSON only with this shape: {{\"score\": 0, \"findings\": [{{\"category\": \"tone|terminology|messaging|accessibility|unsupported_claim|visual_consistency\", \"severity\": \"low|medium|high\", \"message\": \"why it was flagged\", \"evidence\": \"exact evidence\", \"suggestion\": \"specific correction\", \"source\": \"policy section or approved fact\"}}]}}.
+Policy: {_policy_prompt(policy)}
+Draft: {content}"""
+        try:
+            score, findings = _gemini_request(prompt)
+            return score, findings, f"Gemini {settings.gemini_model}"
+        except (httpx.HTTPError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+            pass
+    score, findings = audit_text(content, policy)
+    return score, findings, "BrandGuard deterministic policy engine"
+
+
 def extract_document_text(filename: str, data: bytes) -> str:
     suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
     if suffix == "pdf":
@@ -123,3 +179,20 @@ def audit_uploaded_file(filename: str, media_type: str | None, data: bytes, poli
         raise ValueError("No extractable text")
     score, findings = audit_text(content, policy)
     return score, findings, content[:4000]
+
+
+def audit_uploaded_file_with_provider(filename: str, media_type: str | None, data: bytes, policy: BrandPolicy):
+    if settings.gemini_api_key:
+        if (media_type or "").startswith("image/"):
+            prompt = f"Review this image for brand consistency, accessibility, and visual policy violations. Return the required JSON schema. Policy: {_policy_prompt(policy)}"
+            try:
+                score, findings = _gemini_request(prompt, (media_type or "image/png", data))
+                return score, findings, f"Gemini {settings.gemini_model} vision", ""
+            except (httpx.HTTPError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+                pass
+        else:
+            content = extract_document_text(filename, data)
+            score, findings, engine = audit_text_with_provider(content, policy)
+            return score, findings, engine, content[:4000]
+    score, findings, preview = audit_uploaded_file(filename, media_type, data, policy)
+    return score, findings, "BrandGuard deterministic policy engine", preview

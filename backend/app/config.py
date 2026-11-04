@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     auth_secret: str = "development-only-change-this-secret"
     access_token_expire_minutes: int = 30
     max_upload_bytes: int = 10_000_000
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
     auth_users_json: str = '{"creator":{"username":"creator@brandguard.local","password":"creator-demo","role":"creator"},"manager":{"username":"manager@brandguard.local","password":"manager-demo","role":"manager"},"legal":{"username":"legal@brandguard.local","password":"legal-demo","role":"legal"}}'
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")

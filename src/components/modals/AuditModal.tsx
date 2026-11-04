@@ -32,6 +32,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
   const [apiError, setApiError] = useState<string | null>(null);
   const [currentAuditId, setCurrentAuditId] = useState<string | null>(null);
   const [dataHandling, setDataHandling] = useState<string | null>(null);
+  const [analysisEngine, setAnalysisEngine] = useState<string | null>(null);
 
   // Image tab states
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -74,6 +75,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
     onAuditComplete(response);
     setCurrentAuditId(response.id);
     setDataHandling(response.data_handling || null);
+    setAnalysisEngine(response.analysis_engine || null);
   };
 
   const runTextAudit = async () => {
@@ -122,6 +124,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
           });
           onAuditComplete(response);
           setDataHandling(response.data_handling || null);
+          setAnalysisEngine(response.analysis_engine || null);
         })
         .catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to audit image.'))
         .finally(() => setIsAuditing(false));
@@ -270,7 +273,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
 
             {dataHandling && (
               <div className="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-3 text-[11px] font-mono text-slate-400">
-                AI disclosure: deterministic policy checks are used in this build. {dataHandling}
+                Analysis engine: {analysisEngine || 'BrandGuard policy engine'}. {dataHandling}
               </div>
             )}
 

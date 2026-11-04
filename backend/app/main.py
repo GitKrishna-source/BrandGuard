@@ -28,7 +28,7 @@ from .schemas import (
     RevisionResponse,
     ViolationInsight,
 )
-from .services import audit_text, audit_uploaded_file
+from .services import audit_text_with_provider, audit_uploaded_file_with_provider
 
 settings = get_settings()
 
@@ -112,7 +112,7 @@ def create_audit(
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
 
-    score, findings = audit_text(payload.content, policy)
+    score, findings, engine = audit_text_with_provider(payload.content, policy)
     audit = Audit(
         policy_id=policy.id,
         content_type=payload.content_type,
@@ -127,7 +127,7 @@ def create_audit(
     return AuditResponse(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
-        content_preview=payload.content[:4000], created_at=audit.created_at,
+        content_preview=payload.content[:4000], analysis_engine=engine, created_at=audit.created_at,
     )
 
 
@@ -143,7 +143,7 @@ def create_upload_audit(
     if len(data) > settings.max_upload_bytes:
         raise HTTPException(status_code=413, detail="Upload exceeds the configured size limit")
     try:
-        score, findings, preview = audit_uploaded_file(file.filename or "upload", file.content_type, data, policy)
+        score, findings, engine, preview = audit_uploaded_file_with_provider(file.filename or "upload", file.content_type, data, policy)
     except Exception as error:
         raise HTTPException(status_code=422, detail="Unable to parse uploaded content") from error
     content_type = "image" if (file.content_type or "").startswith("image/") else "document"
@@ -158,7 +158,7 @@ def create_upload_audit(
     return AuditResponse(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
-        content_preview=preview, created_at=audit.created_at,
+        content_preview=preview, analysis_engine=engine, created_at=audit.created_at,
     )
 
 
@@ -198,7 +198,7 @@ def create_revision(
     policy = db.get(BrandPolicy, parent.policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
-    score, findings = audit_text(payload.content, policy)
+    score, findings, engine = audit_text_with_provider(payload.content, policy)
     audit = Audit(
         policy_id=policy.id, content_type="text", content=payload.content, score=score,
         status="needs_review",
@@ -214,7 +214,7 @@ def create_revision(
     return AuditResponse(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
-        content_preview=audit.content[:4000], created_at=audit.created_at,
+        content_preview=audit.content[:4000], analysis_engine=engine, created_at=audit.created_at,
     )
 
 

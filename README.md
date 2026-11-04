@@ -154,9 +154,13 @@ FRONTEND_ORIGIN=http://localhost:3000
 AUTH_SECRET=replace-this-with-a-long-random-secret
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 AUTH_USERS_JSON={...}
+GEMINI_API_KEY=your-google-ai-studio-key
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 Never commit `.env`, production secrets, plaintext production passwords, uploaded confidential content, or database files.
+
+When `GEMINI_API_KEY` is set, audit requests use Gemini server-side with the active brand policy included in the review prompt. The browser never receives the key. If Gemini is unavailable, BrandGuard uses its deterministic policy engine and records the engine used in the audit result. Create the key in Google AI Studio and keep it only in the backend environment.
 
 ## Current implementation status
 
