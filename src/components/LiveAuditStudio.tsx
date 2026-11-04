@@ -14,13 +14,15 @@ import {
   ArrowRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import type { Preset, VoidHandler } from '../types';
 
+interface LiveAuditStudioProps { preset: Preset; onExportAudit: VoidHandler; onPushToCMS: VoidHandler; onOpenVault: VoidHandler }
 export default function LiveAuditStudio({ 
   preset, 
   onExportAudit, 
   onPushToCMS, 
   onOpenVault 
-}) {
+}: LiveAuditStudioProps) {
   const [fixedF1, setFixedF1] = useState(false);
   const [fixedF2, setFixedF2] = useState(false);
   const [isFixingF1, setIsFixingF1] = useState(false);

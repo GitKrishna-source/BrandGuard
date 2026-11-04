@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, User, Check, KeyRound } from 'lucide-react';
+import type { Role, ModalProps } from '../../types';
 
-export default function SignInModal({ isOpen, onClose, currentRole, onSelectRole }) {
+interface SignInModalProps extends ModalProps { currentRole: Role; onSelectRole: (role: Role) => void }
+export default function SignInModal({ isOpen, onClose, currentRole, onSelectRole }: SignInModalProps) {
   if (!isOpen) return null;
 
-  const roles = [
+  const roles: Array<{ id: Role; name: string; badge: string; desc: string; permissions: string[] }> = [
     {
       id: 'creator',
       name: 'Content Creator / Agency',

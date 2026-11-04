@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 import { ArrowUpRight, Search, ShieldAlert, Sparkles, Terminal } from 'lucide-react';
+import type { FormEvent } from 'react';
 
-export default function Hero({ activePresetId, onSelectPreset, onScanQuery }) {
+interface HeroProps { activePresetId: string; onSelectPreset: (id: string) => void; onScanQuery: (query: string) => void }
+interface HeroPreset { id: string; label: string; sampleQuery: string }
+export default function Hero({ activePresetId, onSelectPreset, onScanQuery }: HeroProps) {
   const [query, setQuery] = useState('Our new release is guaranteed 10x faster than legacy enterprise to');
 
-  const presets = [
+  const presets: HeroPreset[] = [
     { id: 'press-release', label: 'Press Release ($4.2M Metric Claim)', sampleQuery: 'Our flagship deployment generated $4.2M in instantaneous net savings' },
     { id: 'launch-copy', label: 'Product Launch Copy', sampleQuery: 'Our new release is guaranteed 10x faster than legacy enterprise to' },
     { id: 'banned-terms', label: 'Banned Terminology Check', sampleQuery: 'Stop using trash legacy tools and growth-hack your brand' },
     { id: 'source-fact', label: 'Source-Fact Verification', sampleQuery: 'BrandGuard holds certified ISO-99999 Quantum Cryptography endorsement' },
   ];
 
-  const handlePresetClick = (preset) => {
+  const handlePresetClick = (preset: HeroPreset) => {
     setQuery(preset.sampleQuery);
     onSelectPreset(preset.id);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (onScanQuery) {
       onScanQuery(query);

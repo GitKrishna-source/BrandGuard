@@ -15,6 +15,7 @@ import ExportReportModal from './components/modals/ExportReportModal';
 import SignInModal from './components/modals/SignInModal';
 
 import { PRESETS } from './data/presets';
+import type { Role } from './types';
 
 export default function App() {
   const [activePresetId, setActivePresetId] = useState('launch-copy');
@@ -24,12 +25,12 @@ export default function App() {
   const [isGovernanceModalOpen, setIsGovernanceModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
-  const [currentRole, setCurrentRole] = useState('creator');
+  const [currentRole, setCurrentRole] = useState<Role>('creator');
 
   // Find active preset object
   const activePreset = PRESETS.find((p) => p.id === activePresetId) || PRESETS[0];
 
-  const handleSelectPreset = (id) => {
+  const handleSelectPreset = (id: string) => {
     setActivePresetId(id);
     const studioEl = document.getElementById('live-audit-studio');
     if (studioEl) {
@@ -37,7 +38,7 @@ export default function App() {
     }
   };
 
-  const handleScanQuery = (query) => {
+  const handleScanQuery = (_query: string) => {
     // If user enters custom claim, open live audit studio modal to test custom text
     setIsAuditModalOpen(true);
   };
@@ -131,7 +132,7 @@ export default function App() {
         isOpen={isSignInModalOpen}
         onClose={() => setIsSignInModalOpen(false)}
         currentRole={currentRole}
-        onSelectRole={(r) => setCurrentRole(r)}
+        onSelectRole={(r: Role) => setCurrentRole(r)}
       />
     </div>
   );

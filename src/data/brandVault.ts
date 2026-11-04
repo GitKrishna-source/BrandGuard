@@ -1,4 +1,6 @@
-export const BRAND_VAULT = {
+import type { ApprovalDocument, BrandVault, GovernanceAnalytics } from '../types';
+
+export const BRAND_VAULT: BrandVault = {
   company: 'CloudNexus Inc. / BrandGuard AI',
   version: '2025.4 (Enterprise Edition)',
   lastUpdated: 'Nov 2026',
@@ -32,7 +34,7 @@ export const BRAND_VAULT = {
   ]
 };
 
-export const APPROVAL_PIPELINE = [
+export const APPROVAL_PIPELINE: ApprovalDocument[] = [
   {
     id: 'DOC-9081',
     title: 'Q3 Product Announcement Final.md',
@@ -80,7 +82,7 @@ export const APPROVAL_PIPELINE = [
   }
 ];
 
-export const GOVERNANCE_ANALYTICS = {
+export const GOVERNANCE_ANALYTICS: GovernanceAnalytics = {
   monthlyAudits: '14,820',
   preventionRate: '99.4%',
   avgLatency: '42ms',

@@ -12,14 +12,15 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { BRAND_VAULT } from '../../data/brandVault';
+import type { ModalProps } from '../../types';
 
-export default function BrandVaultModal({ isOpen, onClose }) {
+export default function BrandVaultModal({ isOpen, onClose }: ModalProps) {
+  const [activeTab, setActiveTab] = useState('colors'); // 'colors' | 'facts' | 'lexicon' | 'tone'
+  const [copiedHex, setCopiedHex] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
-  const [activeTab, setActiveTab] = useState('colors'); // 'colors' | 'facts' | 'lexicon' | 'tone'
-  const [copiedHex, setCopiedHex] = useState(null);
-
-  const handleCopy = (hex) => {
+  const handleCopy = (hex: string) => {
     navigator.clipboard.writeText(hex);
     setCopiedHex(hex);
     setTimeout(() => setCopiedHex(null), 1500);

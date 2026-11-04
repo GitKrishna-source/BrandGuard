@@ -10,8 +10,9 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { GOVERNANCE_ANALYTICS } from '../../data/brandVault';
+import type { ModalProps } from '../../types';
 
-export default function GovernanceModal({ isOpen, onClose }) {
+export default function GovernanceModal({ isOpen, onClose }: ModalProps) {
   if (!isOpen) return null;
 
   return (

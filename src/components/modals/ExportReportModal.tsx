@@ -9,12 +9,14 @@ import {
   Code, 
   FileText 
 } from 'lucide-react';
+import type { ModalProps, Preset } from '../../types';
 
-export default function ExportReportModal({ isOpen, onClose, preset }) {
-  if (!isOpen) return null;
-
+interface ExportReportModalProps extends ModalProps { preset: Preset }
+export default function ExportReportModal({ isOpen, onClose, preset }: ExportReportModalProps) {
   const [activeFormat, setActiveFormat] = useState('certificate'); // 'certificate' | 'json'
   const [copied, setCopied] = useState(false);
+
+  if (!isOpen) return null;
 
   const auditReportData = {
     auditId: 'AUDIT-2026-99824B',

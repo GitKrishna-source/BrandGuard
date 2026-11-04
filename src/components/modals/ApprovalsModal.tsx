@@ -14,22 +14,25 @@ import {
 } from 'lucide-react';
 import { APPROVAL_PIPELINE } from '../../data/brandVault';
 import confetti from 'canvas-confetti';
+import type { FormEvent } from 'react';
+import type { ApprovalComment, ModalProps } from '../../types';
 
-export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readinessScore }) {
-  if (!isOpen) return null;
-
+interface ApprovalsModalProps extends ModalProps { currentDocTitle: string; readinessScore: number }
+export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readinessScore }: ApprovalsModalProps) {
   const [activeDocIndex, setActiveDocIndex] = useState(0);
   const [newComment, setNewComment] = useState('');
-  const [comments, setComments] = useState([
+  const [comments, setComments] = useState<ApprovalComment[]>([
     { author: 'Sarah Jenkins (Legal)', text: 'Benchmark claim in §2 has been softened to internal 2024 data. This satisfies Directive #88.', time: '10 mins ago' },
     { author: 'Marcus Vance (VP Marketing)', text: 'Ready for CMS release once legal signs the cryptographic verification.', time: '5 mins ago' }
   ]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishedSuccess, setPublishedSuccess] = useState(false);
 
+  if (!isOpen) return null;
+
   const selectedDoc = APPROVAL_PIPELINE[activeDocIndex];
 
-  const handleAddComment = (e) => {
+  const handleAddComment = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newComment.trim()) return;
     setComments([
