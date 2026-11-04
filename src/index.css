@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #070a13;
+    color: #e2e8f0;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom glow effects */
+.glow-border {
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  box-shadow: 0 0 20px -5px rgba(56, 189, 248, 0.15);
+}
+
+.glow-border-mint {
+  border: 1px solid rgba(20, 241, 149, 0.2);
+  box-shadow: 0 0 20px -5px rgba(20, 241, 149, 0.15);
+}
+
+.glow-border-red {
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  box-shadow: 0 0 20px -5px rgba(244, 63, 94, 0.2);
+}
+
+.glow-border-amber {
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 20px -5px rgba(245, 158, 11, 0.2);
+}
+
+/* Wavy underline animation / effect */
+.squiggly-red {
+  text-decoration: underline wavy #f43f5e 2px;
+  text-underline-offset: 4px;
+}
+
+.squiggly-amber {
+  text-decoration: underline wavy #f59e0b 2px;
+  text-underline-offset: 4px;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070a13;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Subtle grid pattern background */
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+.radial-vignette {
+  background: radial-gradient(circle at 50% 20%, rgba(56, 189, 248, 0.08) 0%, rgba(7, 10, 19, 0.8) 50%, #070a13 100%);
+}
