@@ -1,11 +1,14 @@
-import type { ApiAuditResponse, BrandPolicyResponse } from '../types';
+import type { ApiAuditResponse, BrandPolicyResponse, ReviewResponse, Role } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = options?.body instanceof FormData
+    ? { ...options.headers }
+    : { 'Content-Type': 'application/json', ...options?.headers };
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
+    headers,
   });
 
   if (!response.ok) {
@@ -31,5 +34,24 @@ export function createTextAudit(policyId: string, content: string): Promise<ApiA
   return request<ApiAuditResponse>('/api/audits', {
     method: 'POST',
     body: JSON.stringify({ policy_id: policyId, content_type: 'text', content }),
+  });
+}
+
+export function uploadAudit(policyId: string, file: File): Promise<ApiAuditResponse> {
+  const form = new FormData();
+  form.append('policy_id', policyId);
+  form.append('file', file);
+  return request<ApiAuditResponse>('/api/audits/upload', { method: 'POST', body: form, headers: {} });
+}
+
+export function createReview(
+  auditId: string,
+  reviewerRole: Role,
+  status: ReviewResponse['status'],
+  comment?: string,
+): Promise<ReviewResponse> {
+  return request<ReviewResponse>(`/api/audits/${auditId}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify({ reviewer_role: reviewerRole, status, comment }),
   });
 }

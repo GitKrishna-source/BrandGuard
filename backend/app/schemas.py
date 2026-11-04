@@ -41,6 +41,7 @@ class AuditResponse(BaseModel):
     score: int
     status: str
     findings: list[Finding]
+    content_preview: str | None = None
     created_at: datetime
 
 

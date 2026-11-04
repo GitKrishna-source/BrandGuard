@@ -13,12 +13,16 @@ import {
   ArrowRight
 } from 'lucide-react';
 import type { ChangeEvent } from 'react';
-import type { ImageAuditResponse, ModalProps, TextAuditResponse } from '../../types';
-import { createTextAudit } from '../../lib/api';
+import type { ApiAuditResponse, ImageAuditResponse, ModalProps, TextAuditResponse } from '../../types';
+import { createTextAudit, uploadAudit } from '../../lib/api';
 
-interface AuditModalProps extends ModalProps { policyId: string | null; initialText?: string }
+interface AuditModalProps extends ModalProps {
+  policyId: string | null;
+  initialText?: string;
+  onAuditComplete: (audit: ApiAuditResponse) => void;
+}
 
-export default function AuditModal({ isOpen, onClose, policyId, initialText }: AuditModalProps) {
+export default function AuditModal({ isOpen, onClose, policyId, initialText, onAuditComplete }: AuditModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
     initialText || 'Our company offers the cheapest cloud hosting in the world. We are guaranteed 100% bug-free with infinite scalability. Contact our customer support rep today!'
@@ -41,6 +45,29 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText }: A
 
   if (!isOpen) return null;
 
+  const applyApiAudit = (response: ApiAuditResponse) => {
+    const findings = response.findings.length > 0
+      ? response.findings.map((finding) => ({
+          type: finding.category,
+          severity: finding.severity === 'high' ? 'Critical' : finding.severity === 'medium' ? 'Medium' : 'Low',
+          quote: finding.evidence,
+          explanation: `${finding.message} Source: ${finding.source}`,
+          suggestedFix: finding.suggestion,
+        }))
+      : [{
+          type: 'Brand Compliance', severity: 'Clean', quote: 'All text compliant',
+          explanation: 'The API found no policy violations in this content.',
+          suggestedFix: 'Ready to publish without modification',
+        }];
+    setAuditResult({
+      score: response.score,
+      findings,
+      tone: response.status === 'approved' ? 'Compliant' : 'Requires Review',
+      wordCount: (response.content_preview || customText).split(/\s+/).filter(Boolean).length,
+    });
+    onAuditComplete(response);
+  };
+
   const runTextAudit = async () => {
     if (!policyId) {
       setApiError('Brand policy is still loading. Start the audit again in a moment.');
@@ -51,27 +78,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText }: A
     setApiError(null);
     try {
       const response = await createTextAudit(policyId, customText);
-      const findings = response.findings.length > 0
-        ? response.findings.map((finding) => ({
-            type: finding.category,
-            severity: finding.severity === 'high' ? 'Critical' : finding.severity === 'medium' ? 'Medium' : 'Low',
-            quote: finding.evidence,
-            explanation: `${finding.message} Source: ${finding.source}`,
-            suggestedFix: finding.suggestion,
-          }))
-        : [{
-            type: 'Brand Compliance',
-            severity: 'Clean',
-            quote: 'All text compliant',
-            explanation: 'The API found no policy violations in this content.',
-            suggestedFix: 'Ready to publish without modification',
-          }];
-      setAuditResult({
-        score: response.score,
-        findings,
-        tone: response.status === 'approved' ? 'Compliant' : 'Requires Review',
-        wordCount: customText.split(/\s+/).filter(Boolean).length,
-      });
+      applyApiAudit(response);
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Unable to complete the audit.');
     } finally {
@@ -86,24 +93,27 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText }: A
       const url = URL.createObjectURL(file);
       setImagePreview(url);
       
+      if (!policyId) return;
       setIsAuditing(true);
-      setTimeout(() => {
-        setImageAuditResult({
-          score: 84,
-          primaryPaletteMatch: '88% Match (Cyan #38bdf8 & Slate #070a13 detected)',
-          logoPlacement: 'Compliant (Safe clearance margin > 24px)',
-          accessibilityContrast: 'WCAG AAA (7.2:1 Contrast Ratio)',
-          flags: [
-            {
-              severity: 'Moderate',
-              issue: 'Secondary Color Drift',
-              detail: 'Detected unapproved magenta gradient #d946ef in background. Approved secondary is Mint #14f195.',
-              recommendation: 'Replace background accent with #14f195 or neutral slate.'
-            }
-          ]
-        });
-        setIsAuditing(false);
-      }, 700);
+      setApiError(null);
+      uploadAudit(policyId, file)
+        .then((response) => {
+          setImageAuditResult({
+            score: response.score,
+            primaryPaletteMatch: response.findings[0]?.message || 'Visual policy review completed',
+            logoPlacement: response.findings[0]?.suggestion || 'Requires policy-aware visual review',
+            accessibilityContrast: 'Requires accessibility contrast verification',
+            flags: response.findings.map((finding) => ({
+              severity: finding.severity,
+              issue: finding.category,
+              detail: finding.message,
+              recommendation: finding.suggestion,
+            })),
+          });
+          onAuditComplete(response);
+        })
+        .catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to audit image.'))
+        .finally(() => setIsAuditing(false));
     }
   };
 
@@ -111,10 +121,17 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText }: A
     const file = e.target.files?.[0];
     if (file) {
       setDocName(file.name);
-      setCustomText(
-        `[Parsed from ${file.name}]\n\nCloudNexus delivers hyper-converged zero-trust networks with automated compliance. Contact our customer support rep for guaranteed zero downtime deployment.`
-      );
-      setActiveTab('text');
+      if (!policyId) return;
+      setIsAuditing(true);
+      setApiError(null);
+      uploadAudit(policyId, file)
+        .then((response) => {
+          setCustomText(response.content_preview || `[Parsed from ${file.name}]`);
+          applyApiAudit(response);
+          setActiveTab('text');
+        })
+        .catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to audit document.'))
+        .finally(() => setIsAuditing(false));
     }
   };
 

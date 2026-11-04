@@ -15,10 +15,16 @@ import {
 import { APPROVAL_PIPELINE } from '../../data/brandVault';
 import confetti from 'canvas-confetti';
 import type { FormEvent } from 'react';
-import type { ApprovalComment, ModalProps } from '../../types';
+import type { ApprovalComment, ModalProps, Role } from '../../types';
+import { createReview } from '../../lib/api';
 
-interface ApprovalsModalProps extends ModalProps { currentDocTitle: string; readinessScore: number }
-export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readinessScore }: ApprovalsModalProps) {
+interface ApprovalsModalProps extends ModalProps {
+  currentDocTitle: string;
+  readinessScore: number;
+  auditId?: string;
+  reviewerRole: Role;
+}
+export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readinessScore, auditId, reviewerRole }: ApprovalsModalProps) {
   const [activeDocIndex, setActiveDocIndex] = useState(0);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<ApprovalComment[]>([
@@ -27,24 +33,30 @@ export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readi
   ]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishedSuccess, setPublishedSuccess] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const selectedDoc = APPROVAL_PIPELINE[activeDocIndex];
 
-  const handleAddComment = (e: FormEvent<HTMLFormElement>) => {
+  const handleAddComment = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-    setComments([
-      ...comments,
-      { author: 'You (Reviewer)', text: newComment, time: 'Just now' }
-    ]);
-    setNewComment('');
+    setApiError(null);
+    try {
+      if (auditId) await createReview(auditId, reviewerRole, 'pending', newComment);
+      setComments([...comments, { author: 'You (Reviewer)', text: newComment, time: 'Just now' }]);
+      setNewComment('');
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Unable to save review comment.');
+    }
   };
 
-  const handlePublishToCMS = () => {
+  const handlePublishToCMS = async () => {
     setIsPublishing(true);
-    setTimeout(() => {
+    setApiError(null);
+    try {
+      if (auditId) await createReview(auditId, reviewerRole, 'approved', 'Approved for CMS publication.');
       setIsPublishing(false);
       setPublishedSuccess(true);
       confetti({
@@ -52,7 +64,10 @@ export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readi
         spread: 70,
         origin: { y: 0.6 }
       });
-    }, 900);
+    } catch (error) {
+      setIsPublishing(false);
+      setApiError(error instanceof Error ? error.message : 'Unable to save approval.');
+    }
   };
 
   return (
@@ -143,12 +158,12 @@ export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readi
             <div className="p-4 rounded-xl bg-[#080d19] border border-slate-800 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div>
-                  <h4 className="text-sm font-bold text-white">{selectedDoc.title}</h4>
+                  <h4 className="text-sm font-bold text-white">{auditId ? currentDocTitle : selectedDoc.title}</h4>
                   <span className="text-xs font-mono text-slate-400">Channel: {selectedDoc.channel}</span>
                 </div>
                 <div className="text-right">
                   <span className="text-[10px] font-mono text-slate-500 uppercase block">Governance Score:</span>
-                  <span className="text-sm font-mono font-bold text-emerald-400">96 / 100</span>
+                  <span className="text-sm font-mono font-bold text-emerald-400">{readinessScore} / 100</span>
                 </div>
               </div>
 
@@ -212,6 +227,7 @@ export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readi
 
               {/* CMS Publishing Gateway */}
               <div className="pt-3 border-t border-slate-800">
+                {apiError && <div className="mb-3 rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300">{apiError}</div>}
                 {publishedSuccess ? (
                   <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono flex items-center justify-between">
                     <div className="flex items-center gap-2">

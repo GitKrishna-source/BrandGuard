@@ -17,7 +17,7 @@ import SignInModal from './components/modals/SignInModal';
 import { PRESETS } from './data/presets';
 import { BRAND_VAULT } from './data/brandVault';
 import { createPolicy, listPolicies } from './lib/api';
-import type { Role } from './types';
+import type { ApiAuditResponse, Role } from './types';
 
 export default function App() {
   const [activePresetId, setActivePresetId] = useState('launch-copy');
@@ -30,6 +30,7 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<Role>('creator');
   const [policyId, setPolicyId] = useState<string | null>(null);
   const [auditQuery, setAuditQuery] = useState('');
+  const [latestAudit, setLatestAudit] = useState<ApiAuditResponse | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -135,6 +136,7 @@ export default function App() {
         onClose={() => setIsAuditModalOpen(false)}
         policyId={policyId}
         initialText={auditQuery || undefined}
+        onAuditComplete={setLatestAudit}
       />
 
       <BrandVaultModal
@@ -145,8 +147,10 @@ export default function App() {
       <ApprovalsModal
         isOpen={isApprovalsModalOpen}
         onClose={() => setIsApprovalsModalOpen(false)}
-        currentDocTitle={activePreset.workspace}
-        readinessScore={100}
+        currentDocTitle={latestAudit ? `API Audit ${latestAudit.id}` : activePreset.workspace}
+        readinessScore={latestAudit?.score ?? 100}
+        auditId={latestAudit?.id}
+        reviewerRole={currentRole}
       />
 
       <GovernanceModal

@@ -80,6 +80,16 @@ export interface ApiAuditResponse {
   score: number;
   status: string;
   findings: ApiFinding[];
+  content_preview?: string;
+  created_at: string;
+}
+
+export interface ReviewResponse {
+  id: string;
+  audit_id: string;
+  reviewer_role: Role;
+  status: 'pending' | 'approved' | 'rejected' | 'changes_requested';
+  comment: string | null;
   created_at: string;
 }
 

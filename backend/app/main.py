@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,7 +17,7 @@ from .schemas import (
     ReviewCreate,
     ReviewResponse,
 )
-from .services import audit_text
+from .services import audit_text, audit_uploaded_file
 
 settings = get_settings()
 
@@ -77,7 +77,36 @@ def create_audit(payload: AuditCreate, db: Session = Depends(get_db)) -> AuditRe
     db.refresh(audit)
     return AuditResponse(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
-        score=audit.score, status=audit.status, findings=findings, created_at=audit.created_at,
+        score=audit.score, status=audit.status, findings=findings,
+        content_preview=payload.content[:4000], created_at=audit.created_at,
+    )
+
+
+@app.post("/api/audits/upload", response_model=AuditResponse, status_code=status.HTTP_201_CREATED)
+def create_upload_audit(
+    policy_id: str = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db)
+) -> AuditResponse:
+    policy = db.get(BrandPolicy, policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Brand policy not found")
+    data = file.file.read()
+    try:
+        score, findings, preview = audit_uploaded_file(file.filename or "upload", file.content_type, data, policy)
+    except Exception as error:
+        raise HTTPException(status_code=422, detail=f"Unable to parse uploaded content: {error}") from error
+    content_type = "image" if (file.content_type or "").startswith("image/") else "document"
+    audit = Audit(
+        policy_id=policy.id, content_type=content_type, content=preview,
+        score=score, status="approved" if not findings else "needs_review",
+        response={"findings": [finding.model_dump() for finding in findings]},
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(audit)
+    return AuditResponse(
+        id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
+        score=audit.score, status=audit.status, findings=findings,
+        content_preview=preview, created_at=audit.created_at,
     )
 
 
@@ -93,7 +122,8 @@ def list_audits(
         AuditResponse(
             id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
             score=audit.score, status=audit.status,
-            findings=audit.response.get("findings", []), created_at=audit.created_at,
+            findings=audit.response.get("findings", []), content_preview=audit.content[:4000],
+            created_at=audit.created_at,
         )
         for audit in audits
     ]

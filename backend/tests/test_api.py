@@ -1,6 +1,12 @@
+from io import BytesIO
+
+from PIL import Image
+
 from app.db import Base, SessionLocal, engine
 from app.main import create_audit, create_policy, create_review
+from app.models import BrandPolicy
 from app.schemas import AuditCreate, BrandPolicyCreate, ReviewCreate
+from app.services import audit_uploaded_file
 
 
 def test_policy_audit_and_review_flow():
@@ -37,3 +43,21 @@ def test_policy_audit_and_review_flow():
         assert review.status == "changes_requested"
     finally:
         db.close()
+
+
+def test_uploaded_document_and_image_audits():
+    policy = BrandPolicy(name="Upload policy", banned_terms=["customer support rep"], approved_terms={})
+    score, findings, preview = audit_uploaded_file(
+        "release.md", "text/markdown", b"Contact our customer support rep for guaranteed results.", policy
+    )
+    assert score < 100
+    assert findings
+    assert "customer support rep" in preview
+
+    image_buffer = BytesIO()
+    Image.new("RGB", (120, 80), "#38bdf8").save(image_buffer, format="PNG")
+    image_score, image_findings, _ = audit_uploaded_file(
+        "creative.png", "image/png", image_buffer.getvalue(), policy
+    )
+    assert image_score == 85
+    assert image_findings[0].category == "visual_consistency"
