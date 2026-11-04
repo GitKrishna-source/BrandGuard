@@ -158,7 +158,7 @@ export default function SignInModal({ isOpen, onClose, currentRole, onSelectRole
           <span>Enterprise SAML / Okta SSO Compatible</span>
           <div className="flex gap-2">
             <button type="submit" form="sign-in-form" disabled={isSigningIn} className="px-4 py-1.5 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold transition-colors">
-              {isSigningIn ? 'Signing in...' : 'Sign in'}
+              {isSigningIn ? 'Signing in...' : 'Sign In / Log In'}
             </button>
             <button onClick={onClose} type="button" className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors">
               Close

@@ -69,7 +69,7 @@ export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOp
             onClick={onOpenSignIn}
             className="text-xs font-medium text-slate-300 hover:text-white transition-colors hidden sm:block focus:outline-none"
           >
-            Sign In
+            Sign In / Log In
           </button>
           
           <button 
