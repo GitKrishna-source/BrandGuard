@@ -1,6 +1,6 @@
-import re
 import base64
 import json
+import re
 from io import BytesIO
 from typing import Any
 
@@ -9,9 +9,9 @@ from docx import Document
 from PIL import Image, ImageColor
 from pypdf import PdfReader
 
+from .config import get_settings
 from .models import BrandPolicy
 from .schemas import Finding
-from .config import get_settings
 
 settings = get_settings()
 
