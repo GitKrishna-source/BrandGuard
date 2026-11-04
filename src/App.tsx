@@ -16,7 +16,7 @@ import SignInModal from './components/modals/SignInModal';
 
 import { PRESETS } from './data/presets';
 import { BRAND_VAULT } from './data/brandVault';
-import { createPolicy, listPolicies } from './lib/api';
+import { createPolicy, getAccessToken, getCurrentUser, listPolicies, login, logout } from './lib/api';
 import type { ApiAuditResponse, Role } from './types';
 
 export default function App() {
@@ -26,13 +26,26 @@ export default function App() {
   const [isApprovalsModalOpen, setIsApprovalsModalOpen] = useState(false);
   const [isGovernanceModalOpen, setIsGovernanceModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(() => !getAccessToken());
   const [currentRole, setCurrentRole] = useState<Role>('creator');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
   const [policyId, setPolicyId] = useState<string | null>(null);
   const [auditQuery, setAuditQuery] = useState('');
   const [latestAudit, setLatestAudit] = useState<ApiAuditResponse | null>(null);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+    getCurrentUser()
+      .then((user) => setCurrentRole(user.role))
+      .catch(() => {
+        logout();
+        setIsAuthenticated(false);
+        setIsSignInModalOpen(true);
+      });
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
     let isMounted = true;
     const loadPolicy = async () => {
       try {
@@ -56,7 +69,15 @@ export default function App() {
     };
     void loadPolicy();
     return () => { isMounted = false; };
-  }, []);
+  }, [isAuthenticated]);
+
+  const handleSignIn = async (role: Role, username: string, password: string) => {
+    const response = await login(username, password);
+    if (response.user.role !== role) throw new Error('Selected persona does not match this account.');
+    setCurrentRole(response.user.role);
+    setIsAuthenticated(true);
+    setIsSignInModalOpen(false);
+  };
 
   // Find active preset object
   const activePreset = PRESETS.find((p) => p.id === activePresetId) || PRESETS[0];
@@ -169,6 +190,7 @@ export default function App() {
         onClose={() => setIsSignInModalOpen(false)}
         currentRole={currentRole}
         onSelectRole={(r: Role) => setCurrentRole(r)}
+        onSignIn={handleSignIn}
       />
     </div>
   );

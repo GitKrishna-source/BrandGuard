@@ -1,7 +1,10 @@
 from io import BytesIO
 
+import pytest
+from fastapi import HTTPException
 from PIL import Image
 
+from app.auth import authenticate
 from app.db import Base, SessionLocal, engine
 from app.main import create_audit, create_policy, create_review
 from app.models import BrandPolicy
@@ -39,8 +42,17 @@ def test_policy_audit_and_review_flow():
             audit.id,
             ReviewCreate(reviewer_role="manager", status="changes_requested", comment="Add evidence."),
             db,
+            {"username": "manager@brandguard.local", "role": "manager"},
         )
         assert review.status == "changes_requested"
+        with pytest.raises(HTTPException) as error:
+            create_review(
+                audit.id,
+                ReviewCreate(reviewer_role="creator", status="approved"),
+                db,
+                {"username": "creator@brandguard.local", "role": "creator"},
+            )
+        assert error.value.status_code == 403
     finally:
         db.close()
 
@@ -61,3 +73,8 @@ def test_uploaded_document_and_image_audits():
     )
     assert image_score == 85
     assert image_findings[0].category == "visual_consistency"
+
+
+def test_demo_authentication_returns_role():
+    user = authenticate("manager@brandguard.local", "manager-demo")
+    assert user == {"username": "manager@brandguard.local", "role": "manager"}

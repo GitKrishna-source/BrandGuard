@@ -4,6 +4,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://brandguard:brandguard@db:5432/brandguard
       FRONTEND_ORIGIN: http://localhost:3000
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET before deployment}
+      AUTH_USERS_JSON: ${AUTH_USERS_JSON:?Set AUTH_USERS_JSON before deployment}
     ports:
       - "8000:8000"
     depends_on:

@@ -93,6 +93,9 @@ export interface ReviewResponse {
   created_at: string;
 }
 
+export interface AuthUser { username: string; role: Role }
+export interface LoginResponse { access_token: string; token_type: string; user: AuthUser }
+
 export interface ImageAuditResponse {
   score: number;
   primaryPaletteMatch: string;

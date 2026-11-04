@@ -62,3 +62,19 @@ class ReviewResponse(ReviewCreate):
 class HealthResponse(BaseModel):
     status: str
     environment: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AuthUser(BaseModel):
+    username: str
+    role: Literal["creator", "manager", "legal"]
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: AuthUser

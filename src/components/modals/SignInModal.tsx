@@ -2,8 +2,16 @@ import React, { useState } from 'react';
 import { X, ShieldCheck, User, Check, KeyRound } from 'lucide-react';
 import type { Role, ModalProps } from '../../types';
 
-interface SignInModalProps extends ModalProps { currentRole: Role; onSelectRole: (role: Role) => void }
-export default function SignInModal({ isOpen, onClose, currentRole, onSelectRole }: SignInModalProps) {
+interface SignInModalProps extends ModalProps {
+  currentRole: Role;
+  onSelectRole: (role: Role) => void;
+  onSignIn: (role: Role, username: string, password: string) => Promise<void>;
+}
+export default function SignInModal({ isOpen, onClose, currentRole, onSelectRole, onSignIn }: SignInModalProps) {
+  const [username, setUsername] = useState('creator@brandguard.local');
+  const [password, setPassword] = useState('creator-demo');
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   if (!isOpen) return null;
 
   const roles: Array<{ id: Role; name: string; badge: string; desc: string; permissions: string[] }> = [
@@ -67,7 +75,8 @@ export default function SignInModal({ isOpen, onClose, currentRole, onSelectRole
                 key={r.id}
                 onClick={() => {
                   onSelectRole(r.id);
-                  onClose();
+                  setUsername(`${r.id}@brandguard.local`);
+                  setPassword(`${r.id}-demo`);
                 }}
                 className={`p-4 rounded-xl border cursor-pointer transition-all ${
                   isCurrent
@@ -107,15 +116,54 @@ export default function SignInModal({ isOpen, onClose, currentRole, onSelectRole
           })}
         </div>
 
+        <form
+          id="sign-in-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setIsSigningIn(true);
+            setError(null);
+            try {
+              await onSignIn(currentRole, username, password);
+            } catch (signInError) {
+              setError(signInError instanceof Error ? signInError.message : 'Unable to sign in.');
+            } finally {
+              setIsSigningIn(false);
+            }
+          }}
+          className="px-6 pt-5 space-y-3"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Work email"
+              type="email"
+              required
+              className="bg-[#070a13] border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-400"
+            />
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Password"
+              type="password"
+              required
+              className="bg-[#070a13] border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-400"
+            />
+          </div>
+          {error && <p className="text-xs text-rose-300">{error}</p>}
+        </form>
+
         {/* Footer */}
         <div className="p-4 bg-[#0a101f] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
           <span>Enterprise SAML / Okta SSO Compatible</span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
-          >
-            Close
-          </button>
+          <div className="flex gap-2">
+            <button type="submit" form="sign-in-form" disabled={isSigningIn} className="px-4 py-1.5 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold transition-colors">
+              {isSigningIn ? 'Signing in...' : 'Sign in'}
+            </button>
+            <button onClick={onClose} type="button" className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors">
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

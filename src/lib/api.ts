@@ -1,11 +1,13 @@
-import type { ApiAuditResponse, BrandPolicyResponse, ReviewResponse, Role } from '../types';
+import type { ApiAuditResponse, AuthUser, BrandPolicyResponse, LoginResponse, ReviewResponse, Role } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
+const TOKEN_KEY = 'brandguard_access_token';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const headers = options?.body instanceof FormData
-    ? { ...options.headers }
-    : { 'Content-Type': 'application/json', ...options?.headers };
+  const headers = new Headers(options?.headers);
+  if (!(options?.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+  const token = window.localStorage.getItem(TOKEN_KEY);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
@@ -17,6 +19,27 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+export function getAccessToken(): string | null {
+  return window.localStorage.getItem(TOKEN_KEY);
+}
+
+export async function login(username: string, password: string): Promise<LoginResponse> {
+  const response = await request<LoginResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+  window.localStorage.setItem(TOKEN_KEY, response.access_token);
+  return response;
+}
+
+export function logout(): void {
+  window.localStorage.removeItem(TOKEN_KEY);
+}
+
+export function getCurrentUser(): Promise<AuthUser> {
+  return request<AuthUser>('/api/auth/me');
 }
 
 export function listPolicies(): Promise<BrandPolicyResponse[]> {
