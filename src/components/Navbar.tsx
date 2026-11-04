@@ -1,7 +1,9 @@
 import React from 'react';
 import { Shield, ArrowRight, Sparkles } from 'lucide-react';
+import type { VoidHandler } from '../types';
 
-export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenSignIn }) {
+interface NavbarProps { onOpenAudit: VoidHandler; onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenSignIn: VoidHandler }
+export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenSignIn }: NavbarProps) {
   const scrollToArchitecture = () => {
     const el = document.getElementById('architecture-section');
     if (el) el.scrollIntoView({ behavior: 'smooth' });

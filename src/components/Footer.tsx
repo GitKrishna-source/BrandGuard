@@ -1,6 +1,8 @@
 import React from 'react';
+import type { VoidHandler } from '../types';
 
-export default function Footer({ onOpenWhitepaper, onOpenDocs, onOpenStatus }) {
+interface FooterProps { onOpenWhitepaper: VoidHandler; onOpenDocs: VoidHandler; onOpenStatus: VoidHandler }
+export default function Footer({ onOpenWhitepaper, onOpenDocs, onOpenStatus }: FooterProps) {
   return (
     <footer className="border-t border-slate-900 bg-[#050810] py-8 text-xs font-mono text-slate-500">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">

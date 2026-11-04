@@ -12,24 +12,26 @@ import {
   Layers,
   ArrowRight
 } from 'lucide-react';
+import type { ChangeEvent } from 'react';
+import type { ImageAuditResponse, ModalProps, TextAuditResponse } from '../../types';
 
-export default function AuditModal({ isOpen, onClose }) {
-  if (!isOpen) return null;
-
+export default function AuditModal({ isOpen, onClose }: ModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
     'Our company offers the cheapest cloud hosting in the world. We are guaranteed 100% bug-free with infinite scalability. Contact our customer support rep today!'
   );
   const [isAuditing, setIsAuditing] = useState(false);
-  const [auditResult, setAuditResult] = useState(null);
+  const [auditResult, setAuditResult] = useState<TextAuditResponse | null>(null);
 
   // Image tab states
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [imageAuditResult, setImageAuditResult] = useState(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageAuditResult, setImageAuditResult] = useState<ImageAuditResponse | null>(null);
 
   // Document tab states
-  const [docName, setDocName] = useState(null);
+  const [docName, setDocName] = useState<string | null>(null);
+
+  if (!isOpen) return null;
 
   const runTextAudit = () => {
     setIsAuditing(true);
@@ -90,7 +92,7 @@ export default function AuditModal({ isOpen, onClose }) {
     }, 600);
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
@@ -118,7 +120,7 @@ export default function AuditModal({ isOpen, onClose }) {
     }
   };
 
-  const handleDocUpload = (e) => {
+  const handleDocUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setDocName(file.name);

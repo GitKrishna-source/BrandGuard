@@ -1,7 +1,9 @@
 import React from 'react';
 import { Database, ShieldCheck, UserCheck, TrendingUp, ArrowUpRight } from 'lucide-react';
+import type { VoidHandler } from '../types';
 
-export default function FourPillars({ onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenAudit }) {
+interface FourPillarsProps { onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenAudit: VoidHandler }
+export default function FourPillars({ onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenAudit }: FourPillarsProps) {
   const pillars = [
     {
       title: 'Guidelines & Facts Vault',
