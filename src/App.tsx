@@ -111,6 +111,7 @@ export default function App() {
           onOpenAnalytics={() => setIsGovernanceModalOpen(true)}
           onOpenSignIn={() => setIsSignInModalOpen(true)}
           currentRole={currentRole}
+          isAuthenticated={isAuthenticated}
         />
 
         {/* Hero Section */}

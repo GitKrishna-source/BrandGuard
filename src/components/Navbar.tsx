@@ -2,9 +2,10 @@ import React from 'react';
 import { Shield, ArrowRight, Sparkles } from 'lucide-react';
 import type { Role, VoidHandler } from '../types';
 
-interface NavbarProps { onOpenAudit: VoidHandler; onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenSignIn: VoidHandler; currentRole: Role }
-export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenSignIn, currentRole }: NavbarProps) {
+interface NavbarProps { onOpenAudit: VoidHandler; onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenSignIn: VoidHandler; currentRole: Role; isAuthenticated: boolean }
+export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenSignIn, currentRole, isAuthenticated }: NavbarProps) {
   const canReview = currentRole !== 'creator';
+  const accountLabel = currentRole === 'manager' ? 'Manager Account' : currentRole === 'legal' ? 'Legal Account' : 'Content Creator';
   const scrollToArchitecture = () => {
     const el = document.getElementById('architecture-section');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -69,7 +70,7 @@ export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOp
             onClick={onOpenSignIn}
             className="text-xs font-medium text-slate-300 hover:text-white transition-colors hidden sm:block focus:outline-none"
           >
-            Sign In / Log In
+            {isAuthenticated ? accountLabel : 'Sign In / Log In'}
           </button>
           
           <button 
