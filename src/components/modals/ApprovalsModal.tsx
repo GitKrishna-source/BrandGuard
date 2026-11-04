@@ -56,7 +56,8 @@ export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readi
     setIsPublishing(true);
     setApiError(null);
     try {
-      if (auditId) await createReview(auditId, reviewerRole, 'approved', 'Approved for CMS publication.');
+      const reviewStatus = reviewerRole === 'creator' ? 'pending' : 'approved';
+      if (auditId) await createReview(auditId, reviewerRole, reviewStatus, reviewerRole === 'creator' ? 'Submitted for manager review.' : 'Approved for CMS publication.');
       setIsPublishing(false);
       setPublishedSuccess(true);
       confetti({
@@ -248,7 +249,7 @@ export default function ApprovalsModal({ isOpen, onClose, currentDocTitle, readi
                       className="px-5 py-2.5 bg-[#14f195] hover:bg-[#10d984] text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_15px_rgba(20,241,149,0.3)] transition-all flex items-center gap-2"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>{isPublishing ? 'Signing & Dispatching...' : 'Sign & Push to CMS'}</span>
+                      <span>{isPublishing ? 'Saving Review...' : reviewerRole === 'creator' ? 'Request Manager Review' : 'Sign & Push to CMS'}</span>
                     </button>
                   </div>
                 )}

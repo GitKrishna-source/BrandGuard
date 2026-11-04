@@ -1,9 +1,10 @@
 import React from 'react';
 import { Shield, ArrowRight, Sparkles } from 'lucide-react';
-import type { VoidHandler } from '../types';
+import type { Role, VoidHandler } from '../types';
 
-interface NavbarProps { onOpenAudit: VoidHandler; onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenSignIn: VoidHandler }
-export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenSignIn }: NavbarProps) {
+interface NavbarProps { onOpenAudit: VoidHandler; onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenSignIn: VoidHandler; currentRole: Role }
+export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenSignIn, currentRole }: NavbarProps) {
+  const canReview = currentRole !== 'creator';
   const scrollToArchitecture = () => {
     const el = document.getElementById('architecture-section');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -35,12 +36,7 @@ export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOp
 
         {/* Center Nav Links */}
         <nav className="hidden md:flex items-center space-x-7 text-xs font-medium tracking-wide text-slate-300">
-          <button 
-            onClick={onOpenApprovals}
-            className="hover:text-cyan-300 transition-colors focus:outline-none"
-          >
-            Solutions
-          </button>
+          {canReview && <button onClick={onOpenApprovals} className="hover:text-cyan-300 transition-colors focus:outline-none">Solutions</button>}
           
           <button 
             onClick={onOpenVault}
@@ -64,12 +60,7 @@ export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOp
             Architecture
           </button>
           
-          <button 
-            onClick={onOpenAnalytics}
-            className="hover:text-cyan-300 transition-colors focus:outline-none"
-          >
-            Governance
-          </button>
+          {canReview && <button onClick={onOpenAnalytics} className="hover:text-cyan-300 transition-colors focus:outline-none">Governance</button>}
         </nav>
 
         {/* Right Action Buttons */}

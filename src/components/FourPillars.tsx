@@ -1,9 +1,10 @@
 import React from 'react';
 import { Database, ShieldCheck, UserCheck, TrendingUp, ArrowUpRight } from 'lucide-react';
-import type { VoidHandler } from '../types';
+import type { Role, VoidHandler } from '../types';
 
-interface FourPillarsProps { onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenAudit: VoidHandler }
-export default function FourPillars({ onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenAudit }: FourPillarsProps) {
+interface FourPillarsProps { onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenAudit: VoidHandler; currentRole: Role }
+export default function FourPillars({ onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenAudit, currentRole }: FourPillarsProps) {
+  const canReview = currentRole !== 'creator';
   const pillars = [
     {
       title: 'Guidelines & Facts Vault',
@@ -29,8 +30,8 @@ export default function FourPillars({ onOpenVault, onOpenApprovals, onOpenAnalyt
       iconColor: 'text-indigo-400',
       bgColor: 'bg-indigo-950/40 border-indigo-500/30',
       description: 'Creator-to-Legal signoff pipelines. Set hard publishing gates for unreviewed high-risk statements with cryptographic audit trails.',
-      action: onOpenApprovals,
-      actionLabel: 'View Signoff Queue'
+      action: canReview ? onOpenApprovals : undefined,
+      actionLabel: canReview ? 'View Signoff Queue' : 'Reviewer access required'
     },
     {
       title: 'Governance Insights',
@@ -38,8 +39,8 @@ export default function FourPillars({ onOpenVault, onOpenApprovals, onOpenAnalyt
       iconColor: 'text-emerald-400',
       bgColor: 'bg-emerald-950/40 border-emerald-500/30',
       description: 'Pinpoint recurring messaging divergence, confusion hotspots, and metric misuse across department silos before PR fallout occurs.',
-      action: onOpenAnalytics,
-      actionLabel: 'View Analytics'
+      action: canReview ? onOpenAnalytics : undefined,
+      actionLabel: canReview ? 'View Analytics' : 'Reviewer access required'
     }
   ];
 
@@ -66,7 +67,7 @@ export default function FourPillars({ onOpenVault, onOpenApprovals, onOpenAnalyt
             <div
               key={idx}
               onClick={pillar.action}
-              className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#090e1a]/90 border border-slate-800/90 hover:border-cyan-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-cyan-950/30 cursor-pointer"
+              className={`group relative flex flex-col justify-between p-6 rounded-2xl bg-[#090e1a]/90 border border-slate-800/90 transition-all duration-300 ${pillar.action ? 'hover:border-cyan-500/40 hover:-translate-y-1 hover:shadow-xl hover:shadow-cyan-950/30 cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
             >
               <div>
                 {/* Icon box */}
@@ -77,7 +78,7 @@ export default function FourPillars({ onOpenVault, onOpenApprovals, onOpenAnalyt
                 {/* Card Title */}
                 <h3 className="text-base font-semibold text-white tracking-tight mb-3 group-hover:text-cyan-300 transition-colors flex items-center justify-between">
                   <span>{pillar.title}</span>
-                  <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-cyan-400" />
+                  {pillar.action && <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-cyan-400" />}
                 </h3>
 
                 {/* Card Description */}

@@ -110,6 +110,7 @@ export default function App() {
           onOpenApprovals={() => setIsApprovalsModalOpen(true)}
           onOpenAnalytics={() => setIsGovernanceModalOpen(true)}
           onOpenSignIn={() => setIsSignInModalOpen(true)}
+          currentRole={currentRole}
         />
 
         {/* Hero Section */}
@@ -126,6 +127,7 @@ export default function App() {
             onExportAudit={() => setIsExportModalOpen(true)}
             onPushToCMS={() => setIsApprovalsModalOpen(true)}
             onOpenVault={() => setIsVaultModalOpen(true)}
+            currentRole={currentRole}
           />
 
           {/* Four Pillars of Immutable Brand Confidence */}
@@ -134,6 +136,7 @@ export default function App() {
             onOpenApprovals={() => setIsApprovalsModalOpen(true)}
             onOpenAnalytics={() => setIsGovernanceModalOpen(true)}
             onOpenAudit={() => setIsAuditModalOpen(true)}
+            currentRole={currentRole}
           />
 
           {/* Production Architecture & Latency Benchmark Bar */}

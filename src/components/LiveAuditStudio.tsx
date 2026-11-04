@@ -14,15 +14,17 @@ import {
   ArrowRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import type { Preset, VoidHandler } from '../types';
+import type { Preset, Role, VoidHandler } from '../types';
 
-interface LiveAuditStudioProps { preset: Preset; onExportAudit: VoidHandler; onPushToCMS: VoidHandler; onOpenVault: VoidHandler }
+interface LiveAuditStudioProps { preset: Preset; onExportAudit: VoidHandler; onPushToCMS: VoidHandler; onOpenVault: VoidHandler; currentRole: Role }
 export default function LiveAuditStudio({ 
   preset, 
   onExportAudit, 
   onPushToCMS, 
-  onOpenVault 
+  onOpenVault,
+  currentRole
 }: LiveAuditStudioProps) {
+  const canApprove = currentRole !== 'creator';
   const [fixedF1, setFixedF1] = useState(false);
   const [fixedF2, setFixedF2] = useState(false);
   const [isFixingF1, setIsFixingF1] = useState(false);
@@ -429,7 +431,7 @@ export default function LiveAuditStudio({
                 }`}
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Approve & Push to CMS</span>
+                <span>{canApprove ? 'Approve & Push to CMS' : 'Request Manager Review'}</span>
               </button>
             </div>
           </div>
