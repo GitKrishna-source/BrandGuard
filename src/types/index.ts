@@ -178,3 +178,11 @@ export interface GovernanceAnalytics {
   topViolations: Array<{ risk: string; category: string; department: string; occurrences: number; trend: string }>;
   departmentBreakdown: Array<{ name: string; audits: number; complianceScore: number; riskLevel: string }>;
 }
+
+export interface RemediateResponse {
+  original: string;
+  fixed_content: string;
+  changes_summary: string;
+  analysis_engine: string;
+}
+

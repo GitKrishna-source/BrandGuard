@@ -156,3 +156,15 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: AuthUser
+
+
+class RemediateRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=15000)
+    policy_id: str | None = None
+
+
+class RemediateResponse(BaseModel):
+    original: str
+    fixed_content: str
+    changes_summary: str
+    analysis_engine: str

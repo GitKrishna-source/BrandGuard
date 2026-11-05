@@ -10,12 +10,15 @@ import {
   ShieldAlert,
   Eye,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Wand2,
+  RotateCcw
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import type { ChangeEvent } from 'react';
 import type { ApiAuditResponse, GuidelineDocumentResponse, ImageAuditResponse, ModalProps, RetrievedSource, Role, TextAuditResponse } from '../../types';
 import GuidelineSourcePanel from '../GuidelineSourcePanel';
-import { createRevision, createTextAudit, getAuditReport, uploadAudit } from '../../lib/api';
+import { createRevision, createTextAudit, getAuditReport, remediateContent, uploadAudit } from '../../lib/api';
 
 interface AuditModalProps extends ModalProps {
   currentRole: Role;
@@ -41,6 +44,9 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
   const [isPreparingGuidelines, setIsPreparingGuidelines] = useState(false);
   const [retrievedSources, setRetrievedSources] = useState<RetrievedSource[]>([]);
   const [retrievalMethod, setRetrievalMethod] = useState<string | null>(null);
+  const [isRemediating, setIsRemediating] = useState(false);
+  const [previousText, setPreviousText] = useState<string | null>(null);
+  const [remediationSummary, setRemediationSummary] = useState<string | null>(null);
 
   // Image tab states
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -60,6 +66,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
       setRetrievalMethod(null);
       setDataHandling(null);
       setAnalysisEngine(null);
+      setPreviousText(null);
+      setRemediationSummary(null);
     }
   }, [initialText]);
 
@@ -76,6 +84,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
     setDataHandling(null);
     setAnalysisEngine(null);
     setApiError(null);
+    setPreviousText(null);
+    setRemediationSummary(null);
     onContextChange();
   };
 
@@ -120,6 +130,49 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
       setApiError(error instanceof Error ? error.message : 'Unable to complete the audit.');
     } finally {
       setIsAuditing(false);
+    }
+  };
+
+  const handleAutoFix = async () => {
+    if (!customText.trim() || isRemediating) return;
+    setIsRemediating(true);
+    setApiError(null);
+    try {
+      const response = await remediateContent(customText, guideline?.policy_id);
+      setPreviousText(customText);
+      setCustomText(response.fixed_content);
+      setRemediationSummary(response.changes_summary);
+      confetti({
+        particleCount: 70,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#a78bfa', '#f472b6', '#34d399', '#ffffff'],
+      });
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Unable to auto-fix the draft.');
+    } finally {
+      setIsRemediating(false);
+    }
+  };
+
+  const handleUndoFix = () => {
+    if (previousText !== null) {
+      setCustomText(previousText);
+      setPreviousText(null);
+      setRemediationSummary(null);
+    }
+  };
+
+  const handleApplySingleFix = (quote: string, suggestedFix: string) => {
+    if (!quote || !customText) return;
+    setPreviousText(customText);
+    const lowerText = customText.toLowerCase();
+    const lowerQuote = quote.toLowerCase();
+    const index = lowerText.indexOf(lowerQuote);
+    if (index !== -1) {
+      const updated = customText.slice(0, index) + suggestedFix + customText.slice(index + quote.length);
+      setCustomText(updated);
+      setRemediationSummary(`Applied fix: "${quote}" replaced with "${suggestedFix}".`);
     }
   };
 
@@ -310,20 +363,57 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
             {/* Results */}
             {auditResult && (
               <div className="mt-5 p-5 rounded-xl bg-[#0e0a18] border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-800 gap-3">
+                  <div className="flex items-center gap-3">
                     <span className="text-xs font-mono text-slate-400">Readiness Score:</span>
                     <span className={`text-base font-bold font-mono ${
                       auditResult.score >= 90 ? 'text-emerald-400' : auditResult.score >= 70 ? 'text-amber-400' : 'text-rose-400'
                     }`}>
                       {auditResult.score} / 100
                     </span>
+                    <span className="text-xs font-mono text-slate-400 border-l border-slate-800 pl-3">
+                      Workflow: <strong className="text-violet-300">{auditResult.tone}</strong>
+                    </span>
                   </div>
 
-                  <span className="text-xs font-mono text-slate-400">
-                    Workflow: <strong className="text-violet-300">{auditResult.tone}</strong>
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {previousText && (
+                      <button
+                        onClick={handleUndoFix}
+                        className="px-2.5 py-1 text-[11px] font-mono text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-all"
+                        title="Revert draft to state before auto-fix"
+                      >
+                        <RotateCcw className="w-3 h-3 text-amber-400" />
+                        <span>Undo Fix</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={handleAutoFix}
+                      disabled={isRemediating || !customText.trim()}
+                      className="px-3 py-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-400 hover:to-fuchsia-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-violet-500/25 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                      title="Automatically fix all violations according to brand guidelines"
+                    >
+                      <Wand2 className={`w-3.5 h-3.5 ${isRemediating ? 'animate-spin' : ''}`} />
+                      <span>{isRemediating ? 'Fixing Statement...' : '✨ AI Auto-Fix Statement'}</span>
+                    </button>
+                  </div>
                 </div>
+
+                {remediationSummary && (
+                  <div className="p-3.5 rounded-xl bg-violet-950/40 border border-violet-500/40 text-xs flex items-start gap-3">
+                    <Sparkles className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-violet-200 mb-1 flex items-center justify-between">
+                        <span>Applied AI Brand Corrections</span>
+                        <span className="text-[10px] font-mono text-violet-400 font-normal">Re-audit recommended</span>
+                      </div>
+                      <p className="text-slate-300 text-[11px] font-mono leading-relaxed">{remediationSummary}</p>
+                      <div className="mt-2 text-[10px] text-violet-300/80 font-mono">
+                        Tip: Click <strong>"Save Revision & Re-audit"</strong> above to see the new verified score!
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   {auditResult.findings.map((f, i) => (
@@ -346,9 +436,20 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                         <span className="text-slate-400 text-[10px]">Flagged: "{f.quote}"</span>
                       </div>
                       <p className="text-slate-300 mb-2 leading-relaxed">{f.explanation}</p>
-                      <div className="text-[11px] font-mono text-emerald-400 flex items-center gap-1.5 bg-slate-900/80 p-2 rounded border border-slate-800">
-                        <span className="text-slate-500 uppercase text-[9px]">AI Suggestion:</span>
-                        <span>{f.suggestedFix}</span>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono bg-slate-900/80 p-2 rounded border border-slate-800">
+                        <div className="flex items-center gap-1.5 text-emerald-400">
+                          <span className="text-slate-500 uppercase text-[9px]">AI Suggestion:</span>
+                          <span>{f.suggestedFix}</span>
+                        </div>
+                        {f.quote && f.suggestedFix && customText.toLowerCase().includes(f.quote.toLowerCase()) && (
+                          <button
+                            onClick={() => handleApplySingleFix(f.quote, f.suggestedFix)}
+                            className="px-2.5 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-[10px] shrink-0 font-medium transition-colors"
+                            title={`Replace "${f.quote}" with fix`}
+                          >
+                            Apply Fix
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

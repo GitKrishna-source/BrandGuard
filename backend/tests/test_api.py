@@ -13,9 +13,16 @@ from app.main import (
     create_revision,
     list_audits,
     list_reviews,
+    remediate_audit_content,
 )
 from app.models import BrandPolicy
-from app.schemas import AuditCreate, BrandPolicyCreate, ReviewCreate, RevisionCreate
+from app.schemas import (
+    AuditCreate,
+    BrandPolicyCreate,
+    RemediateRequest,
+    ReviewCreate,
+    RevisionCreate,
+)
 from app.services import audit_uploaded_file
 
 
@@ -125,3 +132,29 @@ def test_provider_metadata_is_returned_and_preserved_in_history(monkeypatch):
         revision = create_revision(audit.id, RevisionCreate(content="Updated draft."), db, user)
         assert revision.analysis_engine == "Gemini test-model"
         assert "sent to Google Gemini" in revision.data_handling
+
+
+def test_remediate_audit_content_fixes_banned_terms_and_unsupported_claims():
+    Base.metadata.create_all(bind=engine)
+    user = {"username": "remediate-test@brandguard.local", "role": "creator"}
+    with SessionLocal() as db:
+        policy = create_policy(
+            BrandPolicyCreate(
+                name="Remediation Test Policy",
+                banned_terms=["customer support rep"],
+                approved_terms={"customer support rep": "Brand Success Specialist"},
+            ),
+            db,
+        )
+        response = remediate_audit_content(
+            RemediateRequest(
+                content="Talk to our customer support rep. We are guaranteed 100% bug-free!",
+                policy_id=policy.id,
+            ),
+            db,
+            user,
+        )
+        assert "Brand Success Specialist" in response.fixed_content
+        assert "customer support rep" not in response.fixed_content.lower()
+        assert response.changes_summary != ""
+

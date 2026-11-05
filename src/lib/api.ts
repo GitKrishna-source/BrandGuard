@@ -1,4 +1,4 @@
-import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, GovernanceInsightsResponse, GuidelineDocumentResponse, LoginResponse, ReviewResponse, Role } from '../types';
+import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, GovernanceInsightsResponse, GuidelineDocumentResponse, LoginResponse, RemediateResponse, ReviewResponse, Role } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const TOKEN_KEY = 'brandguard_access_token';
@@ -147,3 +147,11 @@ export function createReview(
     body: JSON.stringify({ reviewer_role: reviewerRole, status, comment }),
   });
 }
+
+export function remediateContent(content: string, policyId?: string): Promise<RemediateResponse> {
+  return request<RemediateResponse>('/api/audits/remediate', {
+    method: 'POST',
+    body: JSON.stringify({ content, policy_id: policyId }),
+  });
+}
+

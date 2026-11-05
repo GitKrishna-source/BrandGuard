@@ -36,6 +36,8 @@ from .schemas import (
     HealthResponse,
     LoginRequest,
     LoginResponse,
+    RemediateRequest,
+    RemediateResponse,
     ReviewCreate,
     ReviewResponse,
     RevisionCreate,
@@ -47,6 +49,7 @@ from .services import (
     audit_text_with_provider,
     audit_uploaded_file_with_provider,
     extract_document_text,
+    remediate_text_with_provider,
 )
 
 settings = get_settings()
@@ -240,6 +243,25 @@ def create_audit(
         score=audit.score, status=audit.status, findings=findings,
         content_preview=payload.content[:4000], analysis_engine=engine,
         data_handling=source_data_handling(engine, sources), **source_metadata(sources), created_at=audit.created_at,
+    )
+
+
+@app.post("/api/audits/remediate", response_model=RemediateResponse)
+def remediate_audit_content(
+    payload: RemediateRequest,
+    db: Session = Depends(get_db),
+    user: dict[str, str] = Depends(get_current_user),
+) -> RemediateResponse:
+    policy = get_basic_policy(db) if payload.policy_id is None else db.get(BrandPolicy, payload.policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Brand policy not found")
+    sources = audit_sources(db, policy.id, user, payload.content)
+    fixed_content, changes_summary, engine = remediate_text_with_provider(payload.content, policy, sources)
+    return RemediateResponse(
+        original=payload.content,
+        fixed_content=fixed_content,
+        changes_summary=changes_summary,
+        analysis_engine=engine,
     )
 
 

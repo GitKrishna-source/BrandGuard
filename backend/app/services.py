@@ -42,6 +42,11 @@ class _ProviderAudit(BaseModel):
     findings: list[Finding]
 
 
+class _ProviderRemediation(BaseModel):
+    fixed_content: str
+    changes_summary: str
+
+
 def _provider_details(image: bool = False) -> tuple[str, str | None, str]:
     if settings.ai_provider == "groq":
         model = settings.groq_vision_model if image else settings.groq_model
@@ -261,7 +266,7 @@ def _ground_findings(findings: list[Finding], sources: list[RetrievedSource] | N
     by_id = {source.citation_id: source for source in sources}
     result = []
     for finding in findings:
-        cited = re.findall(r"\[(S\d+)\]", finding.source)
+        cited = re.findall(r"\b(S\d+)\b", finding.source)
         if provider:
             if any(citation not in by_id for citation in cited):
                 raise ValueError("AI cited an unretrieved source")
@@ -399,3 +404,98 @@ def audit_uploaded_file_with_provider(filename: str, media_type: str | None, dat
             return score, findings, engine, content
     score, findings, preview = audit_uploaded_file(filename, media_type, data, policy)
     return score, _ground_findings(findings, sources, provider=False), engine, preview
+
+
+def _remediation_request(prompt: str) -> tuple[str, str]:
+    if settings.ai_provider == "groq":
+        response = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {settings.groq_api_key or ''}"},
+            json={
+                "model": settings.groq_model,
+                "messages": [
+                    {"role": "system", "content": "You are BrandGuard, an expert copy editor and brand compliance specialist. Return only valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.2,
+                "max_completion_tokens": 2500,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        choice = response.json()["choices"][0]
+        result = _ProviderRemediation.model_validate_json(choice["message"]["content"])
+        return result.fixed_content, result.changes_summary
+    if settings.ai_provider == "gemini":
+        response = httpx.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent",
+            headers={"x-goog-api-key": settings.gemini_api_key or "", "Content-Type": "application/json"},
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2500, "responseMimeType": "application/json"},
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        parts = response.json()["candidates"][0]["content"]["parts"]
+        text = "".join(part.get("text", "") for part in parts if not part.get("thought"))
+        result = _ProviderRemediation.model_validate_json(text)
+        return result.fixed_content, result.changes_summary
+    raise ValueError("No external AI provider configured")
+
+
+def _deterministic_remediate(content: str, policy: BrandPolicy) -> tuple[str, str]:
+    fixed = content
+    changes: list[str] = []
+    for term in policy.banned_terms or []:
+        if term.lower() in fixed.lower():
+            replacement = (policy.approved_terms or {}).get(term, "approved brand terminology")
+            pattern = re.compile(re.escape(term), re.IGNORECASE)
+            fixed = pattern.sub(replacement, fixed)
+            changes.append(f"Replaced banned term '{term}' with '{replacement}'.")
+
+    unsupported_patterns = [
+        (r"\b100%\s+bug-free\b", "high availability and reliable uptime SLA"),
+        (r"\b100%\s+waterproof\b", "water-resistant"),
+        (r"\bguaranteed\b", "engineered for"),
+        (r"\b10x\s+faster\b", "up to 3x faster based on internal tests"),
+        (r"\bthe\s+#?1\b", "a leading"),
+    ]
+    for pat, repl in unsupported_patterns:
+        if re.search(pat, fixed, re.IGNORECASE):
+            fixed = re.sub(pat, repl, fixed, flags=re.IGNORECASE)
+            changes.append(f"Softened unverified claim to '{repl}'.")
+
+    summary = " ".join(changes) if changes else "Adjusted draft according to brand standards."
+    return fixed, summary
+
+
+def remediate_text_with_provider(content: str, policy: BrandPolicy,
+                                 sources: list[RetrievedSource] | None = None) -> tuple[str, str, str]:
+    provider, key, model = _provider_details()
+    if key:
+        prompt = f"""You are BrandGuard AI, an expert copy editor and brand compliance specialist.
+Your task is to REWRITE the provided draft to be 100% compliant with the supplied brand policy and retrieved guidelines.
+
+Rules for remediation:
+1. Fix all unsupported claims, exaggerations, and superlatives (e.g. remove or qualify '#1' rankings, '100% waterproof', and remove unverified medical or financial assertions).
+2. Replace all banned terminology, slang, or unapproved nomenclature with approved terms from the policy.
+3. Fix messaging, product pricing, returns, and positioning to match the policy guidelines (e.g. use approved prices and return policies from retrieved guidelines).
+4. Preserve the creator's voice, intent, and sentence structure as closely as possible.
+5. Return JSON only with this shape:
+{{"fixed_content": "the corrected compliant text", "changes_summary": "summary of corrections made"}}
+
+Policy & Guidelines:
+{_retrieved_context(policy, sources)}
+
+Draft:
+{content}"""
+        try:
+            fixed_content, changes_summary = _remediation_request(prompt)
+            return fixed_content, changes_summary, f"{provider} {model}"
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as error:
+            logger.warning("Remediation provider failed (%s); using local policy fix", error)
+
+    fixed_content, changes_summary = _deterministic_remediate(content, policy)
+    return fixed_content, changes_summary, LOCAL_ENGINE
