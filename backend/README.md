@@ -26,14 +26,14 @@ uvicorn app.main:app --reload --port 8000
 The default database is a local SQLite file. Set `DATABASE_URL` to PostgreSQL for deployment.
 Interactive API documentation is available at `http://localhost:8000/docs`.
 
-Authentication uses bearer JWTs. Local development includes three demo accounts:
+The hackathon UI uses one-click demo login. Choose Creator, Manager, or Legal to start
+a session without entering an email or password. The backend issues a role-scoped JWT
+through `POST /api/auth/demo`; refresh keeps the session and the account button lets judges
+switch roles. Approval permissions still apply, including legal approval for high-risk findings.
 
-- `creator@brandguard.local` / `creator-demo`
-- `manager@brandguard.local` / `manager-demo`
-- `legal@brandguard.local` / `legal-demo`
-
-Replace `AUTH_SECRET` and `AUTH_USERS_JSON` before deployment. Production user records
-should contain Argon2 `password_hash` values rather than plaintext passwords.
+`DEMO_LOGIN_ENABLED=true` is the prototype default, including on deployed instances. Set it
+to `false` to disable the demo endpoint. The separate password login API remains available
+for configured `AUTH_USERS_JSON` accounts, but is not shown in the demo UI.
 
 ## AI analysis
 

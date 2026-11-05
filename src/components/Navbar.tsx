@@ -5,7 +5,7 @@ import type { Role, VoidHandler } from '../types';
 interface NavbarProps { onOpenAudit: VoidHandler; onOpenVault: VoidHandler; onOpenApprovals: VoidHandler; onOpenAnalytics: VoidHandler; onOpenSignIn: VoidHandler; currentRole: Role; isAuthenticated: boolean }
 export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOpenAnalytics, onOpenSignIn, currentRole, isAuthenticated }: NavbarProps) {
   const canReview = currentRole !== 'creator';
-  const accountLabel = currentRole === 'manager' ? 'Manager Account' : currentRole === 'legal' ? 'Legal Account' : 'Content Creator';
+  const accountLabel = currentRole === 'manager' ? 'Manager Demo' : currentRole === 'legal' ? 'Legal Demo' : 'Creator Demo';
   const scrollToArchitecture = () => {
     const el = document.getElementById('architecture-section');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -68,9 +68,9 @@ export default function Navbar({ onOpenAudit, onOpenVault, onOpenApprovals, onOp
         <div className="flex items-center gap-4">
           <button 
             onClick={onOpenSignIn}
-            className="text-xs font-medium text-slate-300 hover:text-white transition-colors hidden sm:block focus:outline-none"
+            className="text-xs font-medium text-slate-300 hover:text-white transition-colors focus:outline-none"
           >
-            {isAuthenticated ? accountLabel : 'Sign In / Log In'}
+            {isAuthenticated ? accountLabel : 'Demo Login'}
           </button>
           
           <button 

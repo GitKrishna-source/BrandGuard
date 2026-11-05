@@ -118,6 +118,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class DemoLoginRequest(BaseModel):
+    role: Literal["creator", "manager", "legal"]
+
+
 class AuthUser(BaseModel):
     username: str
     role: Literal["creator", "manager", "legal"]

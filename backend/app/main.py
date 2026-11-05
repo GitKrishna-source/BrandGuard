@@ -18,6 +18,7 @@ from .schemas import (
     BrandPolicyResponse,
     BrandPolicyUpdate,
     ContentTypeInsight,
+    DemoLoginRequest,
     GovernanceInsights,
     HealthResponse,
     LoginRequest,
@@ -63,6 +64,14 @@ def login(payload: LoginRequest) -> LoginResponse:
     user = authenticate(payload.username, payload.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
+    return LoginResponse(access_token=create_access_token(user), user=AuthUser(**user))
+
+
+@app.post("/api/auth/demo", response_model=LoginResponse, tags=["auth"])
+def demo_login(payload: DemoLoginRequest) -> LoginResponse:
+    if not settings.demo_login_enabled:
+        raise HTTPException(status_code=403, detail="Demo login is disabled")
+    user = {"username": f"{payload.role}@brandguard.local", "role": payload.role}
     return LoginResponse(access_token=create_access_token(user), user=AuthUser(**user))
 
 

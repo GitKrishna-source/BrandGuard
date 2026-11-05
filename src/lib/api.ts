@@ -38,6 +38,15 @@ export function logout(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
+export async function demoLogin(role: Role): Promise<LoginResponse> {
+  const response = await request<LoginResponse>('/api/auth/demo', {
+    method: 'POST',
+    body: JSON.stringify({ role }),
+  });
+  window.localStorage.setItem(TOKEN_KEY, response.access_token);
+  return response;
+}
+
 export function getCurrentUser(): Promise<AuthUser> {
   return request<AuthUser>('/api/auth/me');
 }

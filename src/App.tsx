@@ -16,7 +16,7 @@ import SignInModal from './components/modals/SignInModal';
 
 import { PRESETS } from './data/presets';
 import { BRAND_VAULT } from './data/brandVault';
-import { createPolicy, getAccessToken, getCurrentUser, listPolicies, login, logout } from './lib/api';
+import { createPolicy, demoLogin, getAccessToken, getCurrentUser, listPolicies, logout } from './lib/api';
 import type { ApiAuditResponse, Role } from './types';
 
 export default function App() {
@@ -28,7 +28,6 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(() => !getAccessToken());
   const [currentRole, setCurrentRole] = useState<Role>('creator');
-  const [selectedRole, setSelectedRole] = useState<Role>('creator');
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
   const [policyId, setPolicyId] = useState<string | null>(null);
   const [auditQuery, setAuditQuery] = useState('');
@@ -72,12 +71,14 @@ export default function App() {
     return () => { isMounted = false; };
   }, [isAuthenticated]);
 
-  const handleSignIn = async (role: Role, username: string, password: string) => {
-    const response = await login(username, password);
+  const handleSignIn = async (role: Role) => {
+    const response = await demoLogin(role);
     setLatestAudit(null);
     setIsAuditModalOpen(false);
     setIsApprovalsModalOpen(false);
     setIsGovernanceModalOpen(false);
+    setIsVaultModalOpen(false);
+    setIsExportModalOpen(false);
     setCurrentRole(response.user.role);
     setIsAuthenticated(true);
     setIsSignInModalOpen(false);
@@ -197,8 +198,7 @@ export default function App() {
       <SignInModal
         isOpen={isSignInModalOpen}
         onClose={() => setIsSignInModalOpen(false)}
-        currentRole={selectedRole}
-        onSelectRole={setSelectedRole}
+        activeRole={isAuthenticated ? currentRole : undefined}
         onSignIn={handleSignIn}
       />
     </div>

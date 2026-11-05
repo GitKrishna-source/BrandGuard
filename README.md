@@ -93,7 +93,12 @@ ruff check app tests
 
 ## Local authentication
 
-The development configuration includes these demo accounts:
+For the hackathon prototype, click a role card to enter the demo without credentials.
+Creator, Manager, and Legal receive role-scoped sessions through `POST /api/auth/demo`.
+The role persists after refresh, and the demo account button lets judges switch roles.
+`DEMO_LOGIN_ENABLED` defaults to `true`; set it to `false` to disable passwordless demo entry.
+
+The separate password login API retains these development accounts:
 
 | Role | Username | Password |
 |---|---|---|
