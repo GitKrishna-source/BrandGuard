@@ -28,7 +28,11 @@ from .schemas import (
     RevisionResponse,
     ViolationInsight,
 )
-from .services import audit_text_with_provider, audit_uploaded_file_with_provider
+from .services import (
+    audit_data_handling,
+    audit_text_with_provider,
+    audit_uploaded_file_with_provider,
+)
 
 settings = get_settings()
 
@@ -119,7 +123,8 @@ def create_audit(
         content=payload.content,
         score=score,
         status="needs_review",
-        response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings]},
+        response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
+                  "analysis_engine": engine, "data_handling": audit_data_handling(engine)},
     )
     db.add(audit)
     db.commit()
@@ -127,7 +132,8 @@ def create_audit(
     return AuditResponse(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
-        content_preview=payload.content[:4000], analysis_engine=engine, created_at=audit.created_at,
+        content_preview=payload.content[:4000], analysis_engine=engine,
+        data_handling=audit_data_handling(engine), created_at=audit.created_at,
     )
 
 
@@ -150,7 +156,8 @@ def create_upload_audit(
     audit = Audit(
         policy_id=policy.id, content_type=content_type, content=preview,
         score=score, status="needs_review",
-        response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings]},
+        response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
+                  "analysis_engine": engine, "data_handling": audit_data_handling(engine)},
     )
     db.add(audit)
     db.commit()
@@ -158,7 +165,8 @@ def create_upload_audit(
     return AuditResponse(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
-        content_preview=preview, analysis_engine=engine, created_at=audit.created_at,
+        content_preview=preview, analysis_engine=engine,
+        data_handling=audit_data_handling(engine), created_at=audit.created_at,
     )
 
 
@@ -179,6 +187,10 @@ def list_audits(
             id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
             score=audit.score, status=audit.status,
             findings=audit.response.get("findings", []), content_preview=audit.content[:4000],
+            analysis_engine=audit.response.get("analysis_engine", "Not recorded for this older audit"),
+            data_handling=audit.response.get(
+                "data_handling", "Provider usage was not recorded for this older audit."
+            ),
             parent_audit_id=parents.get(audit.id), created_at=audit.created_at,
         )
         for audit in audits
@@ -202,7 +214,8 @@ def create_revision(
     audit = Audit(
         policy_id=policy.id, content_type="text", content=payload.content, score=score,
         status="needs_review",
-        response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings]},
+        response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
+                  "analysis_engine": engine, "data_handling": audit_data_handling(engine)},
     )
     db.add(audit)
     db.flush()
@@ -214,7 +227,8 @@ def create_revision(
     return AuditResponse(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
-        content_preview=audit.content[:4000], analysis_engine=engine, created_at=audit.created_at,
+        content_preview=audit.content[:4000], analysis_engine=engine,
+        data_handling=audit_data_handling(engine), created_at=audit.created_at,
     )
 
 

@@ -6,10 +6,24 @@ from PIL import Image
 
 from app.auth import authenticate
 from app.db import Base, SessionLocal, engine
-from app.main import create_audit, create_policy, create_review, create_revision, list_reviews
+from app.main import (
+    create_audit,
+    create_policy,
+    create_review,
+    create_revision,
+    list_audits,
+    list_reviews,
+)
 from app.models import BrandPolicy
 from app.schemas import AuditCreate, BrandPolicyCreate, ReviewCreate, RevisionCreate
 from app.services import audit_uploaded_file
+
+
+@pytest.fixture(autouse=True)
+def local_audits_only(monkeypatch):
+    # API tests must not send drafts to a real provider when a developer has a key.
+    monkeypatch.setattr("app.services.settings.gemini_api_key", None)
+    monkeypatch.setattr("app.services.settings.groq_api_key", None)
 
 
 def test_policy_audit_and_review_flow():
@@ -90,3 +104,24 @@ def test_uploaded_document_and_image_audits():
 def test_demo_authentication_returns_role():
     user = authenticate("manager@brandguard.local", "manager-demo")
     assert user == {"username": "manager@brandguard.local", "role": "manager"}
+
+
+def test_provider_metadata_is_returned_and_preserved_in_history(monkeypatch):
+    monkeypatch.setattr("app.main.audit_text_with_provider", lambda content, policy: (
+        100, [], "Gemini test-model"
+    ))
+    Base.metadata.create_all(bind=engine)
+    user = {"username": "provider-test@brandguard.local", "role": "creator"}
+    with SessionLocal() as db:
+        policy = create_policy(BrandPolicyCreate(name="Provider metadata test"), db)
+        audit = create_audit(
+            AuditCreate(policy_id=policy.id, content="Service interruptions may occur."), db, user
+        )
+        assert audit.analysis_engine == "Gemini test-model"
+        assert "sent to Google Gemini" in audit.data_handling
+        saved = next(item for item in list_audits(None, db, user) if item.id == audit.id)
+        assert saved.analysis_engine == audit.analysis_engine
+        assert saved.data_handling == audit.data_handling
+        revision = create_revision(audit.id, RevisionCreate(content="Updated draft."), db, user)
+        assert revision.analysis_engine == "Gemini test-model"
+        assert "sent to Google Gemini" in revision.data_handling
