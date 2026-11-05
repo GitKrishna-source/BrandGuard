@@ -421,7 +421,7 @@ export default function LiveAuditStudio({
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-mono font-medium rounded-lg bg-slate-900 border border-slate-700/80 hover:border-slate-500 text-slate-200 hover:text-white transition-all active:scale-95"
               >
                 <Download className="w-3.5 h-3.5 text-slate-400" />
-                <span>Export Audit (JSON/PDF)</span>
+                <span>Saved audit reports</span>
               </button>
 
               <button

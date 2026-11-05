@@ -1,4 +1,4 @@
-import type { ApiAuditResponse, AuthUser, BrandPolicyResponse, GovernanceInsightsResponse, LoginResponse, ReviewResponse, Role } from '../types';
+import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, GovernanceInsightsResponse, LoginResponse, ReviewResponse, Role } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const TOKEN_KEY = 'brandguard_access_token';
@@ -93,6 +93,19 @@ export function listAudits(): Promise<ApiAuditResponse[]> {
 
 export function listReviews(id: string): Promise<ReviewResponse[]> {
   return request(`/api/audits/${id}/reviews`);
+}
+
+export function getAuditReport(id: string): Promise<ApiAuditReport> {
+  return request(`/api/audits/${id}/report`);
+}
+
+export async function downloadAuditPdf(id: string): Promise<Blob> {
+  const headers = new Headers();
+  const token = getAccessToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const response = await fetch(`${API_BASE_URL}/api/audits/${id}/report.pdf`, { headers });
+  if (!response.ok) throw new Error('Unable to download the report. Please try again.');
+  return response.blob();
 }
 
 export function uploadAudit(policyId: string, file: File): Promise<ApiAuditResponse> {

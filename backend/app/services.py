@@ -286,7 +286,7 @@ def audit_uploaded_file(filename: str, media_type: str | None, data: bytes, poli
     if not content.strip():
         raise ValueError("No extractable text")
     score, findings = audit_text(content, policy)
-    return score, findings, content[:4000]
+    return score, findings, content
 
 
 def audit_uploaded_file_with_provider(filename: str, media_type: str | None, data: bytes, policy: BrandPolicy):
@@ -311,6 +311,6 @@ def audit_uploaded_file_with_provider(filename: str, media_type: str | None, dat
             if not content.strip():
                 raise ValueError("No extractable text")
             score, findings, engine = audit_text_with_provider(content, policy)
-            return score, findings, engine, content[:4000]
+            return score, findings, engine, content
     score, findings, preview = audit_uploaded_file(filename, media_type, data, policy)
     return score, findings, engine, preview

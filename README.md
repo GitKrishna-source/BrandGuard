@@ -10,6 +10,7 @@ It reviews content against approved brand guidelines, facts, terminology, and as
 - Upload and audit Markdown, plaintext, PDF, DOCX, and image assets.
 - Explain findings with evidence, source policy, severity, and suggested corrections.
 - Store audit history and collaborative review comments.
+- Export saved audits as PDF or JSON with real findings, policy snapshots, and recorded reviews.
 - Support creator, manager, and legal reviewer roles.
 - Require manager or legal approval before content is marked approved.
 - Persist policies, audits, and reviews in SQLite locally or PostgreSQL in deployment.
@@ -125,6 +126,8 @@ The backend always enforces permissions; hiding a button in the frontend is not 
 - `POST /api/policies` — create a policy
 - `POST /api/audits` — audit text content
 - `POST /api/audits/upload` — audit a document or image upload
+- `GET /api/audits/{audit_id}/report` — report JSON for an accessible saved revision
+- `GET /api/audits/{audit_id}/report.pdf` — downloadable PDF of the saved revision and its reviews
 - `GET /api/audits` — list audit history
 - `POST /api/audits/{audit_id}/reviews` — add a comment or approval decision
 - `GET /api/audits/{audit_id}/reviews` — list review history

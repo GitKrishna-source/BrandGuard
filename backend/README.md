@@ -67,6 +67,22 @@ and data handling notice are saved with new audits.
 
 Local rule checks match phrases and do not provide contextual interpretation.
 
+## Audit reports
+
+`GET /api/audits/{id}/report` returns JSON and `GET /api/audits/{id}/report.pdf` downloads a
+PDF. Both require a session and use the same ownership/reviewer access rules as audit reviews.
+Export reads saved data and never runs AI again. A readiness score and human approval are
+separate fields; reports do not claim compliance certification, digital signatures, or publication.
+
+New audits capture their policy snapshot and retain full extracted document text. The standard
+audit API still returns a 4,000-character preview; the report contains all retained text.
+New reviews record the authenticated account alongside the decision in audit metadata. No
+database schema migration is required. Historical audits without policy snapshots or complete
+document text are explicitly identified. Original image uploads are not retained or hashed.
+
+PDFs use embedded fonts and automatic pagination. Unsupported font characters appear as Unicode
+code labels; JSON retains the original Unicode. ReportLab is included in backend dependencies.
+
 ## Deployment
 
 `docker compose up --build` starts the API and PostgreSQL database together. The frontend

@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { createReview, listAudits, listReviews } from '../../lib/api';
 import type { ApiAuditResponse, ModalProps, ReviewResponse, Role } from '../../types';
 
-interface Props extends ModalProps { auditId?: string; reviewerRole: Role }
+interface Props extends ModalProps { auditId?: string; reviewerRole: Role; onExportAudit: (id: string) => void }
 
-export default function ApprovalsModal({ isOpen, onClose, auditId, reviewerRole }: Props) {
+export default function ApprovalsModal({ isOpen, onClose, auditId, reviewerRole, onExportAudit }: Props) {
   const [audits, setAudits] = useState<ApiAuditResponse[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [reviews, setReviews] = useState<ReviewResponse[]>([]);
@@ -58,6 +58,7 @@ export default function ApprovalsModal({ isOpen, onClose, auditId, reviewerRole 
             {audits.map((row) => <option key={row.id} value={row.id}>{row.content_type} · {row.score}/100 · {row.id.slice(0, 8)}</option>)}
           </select></label>
           <p>Status · {selected.status.replace(/_/g, ' ')}</p>
+          <button disabled={busy} className="text-sm text-violet-300" onClick={() => onExportAudit(selected.id)}>Export this audit</button>
           {selected.parent_audit_id && <button className="text-violet-300" disabled={busy} onClick={() => setSelectedId(selected.parent_audit_id!)}>View previous revision</button>}
           {selected.content_preview && <pre className="whitespace-pre-wrap rounded bg-slate-900 p-3">{selected.content_preview}</pre>}
           <ul>{selected.findings.map((finding, index) => <li key={index}>{finding.message} ({finding.source})</li>)}</ul>

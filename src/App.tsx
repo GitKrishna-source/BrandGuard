@@ -32,6 +32,7 @@ export default function App() {
   const [policyId, setPolicyId] = useState<string | null>(null);
   const [auditQuery, setAuditQuery] = useState('');
   const [latestAudit, setLatestAudit] = useState<ApiAuditResponse | null>(null);
+  const [exportAuditId, setExportAuditId] = useState<string | undefined>();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -74,6 +75,7 @@ export default function App() {
   const handleSignIn = async (role: Role) => {
     const response = await demoLogin(role);
     setLatestAudit(null);
+    setExportAuditId(undefined);
     setIsAuditModalOpen(false);
     setIsApprovalsModalOpen(false);
     setIsGovernanceModalOpen(false);
@@ -98,6 +100,13 @@ export default function App() {
   const handleScanQuery = (query: string) => {
     setAuditQuery(query);
     setIsAuditModalOpen(true);
+  };
+
+  const handleExportAudit = (id?: string) => {
+    setExportAuditId(id);
+    setIsAuditModalOpen(false);
+    setIsApprovalsModalOpen(false);
+    setIsExportModalOpen(true);
   };
 
   return (
@@ -134,7 +143,7 @@ export default function App() {
           {/* Core Feature: Live Interactive Audit Terminal / Studio */}
           <LiveAuditStudio
             preset={activePreset}
-            onExportAudit={() => setIsExportModalOpen(true)}
+            onExportAudit={() => handleExportAudit(latestAudit?.id)}
             onPushToCMS={() => setIsApprovalsModalOpen(true)}
             onOpenVault={() => setIsVaultModalOpen(true)}
             currentRole={currentRole}
@@ -158,7 +167,7 @@ export default function App() {
 
         {/* Footer */}
         <Footer
-          onOpenWhitepaper={() => setIsExportModalOpen(true)}
+          onOpenWhitepaper={() => handleExportAudit(latestAudit?.id)}
           onOpenDocs={() => setIsVaultModalOpen(true)}
           onOpenStatus={() => alert("Welcome to the BrandGuard hackathon demo. Choose a demo role, audit a draft against your brand rules, and explore the review workflow.")}
         />
@@ -172,6 +181,7 @@ export default function App() {
         policyId={policyId}
         initialText={auditQuery || undefined}
         onAuditComplete={setLatestAudit}
+        onExportAudit={handleExportAudit}
       />
 
       <BrandVaultModal
@@ -186,6 +196,7 @@ export default function App() {
         onClose={() => setIsApprovalsModalOpen(false)}
         auditId={latestAudit?.id}
         reviewerRole={currentRole}
+        onExportAudit={handleExportAudit}
       />
 
       <GovernanceModal
@@ -196,7 +207,8 @@ export default function App() {
       <ExportReportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        preset={activePreset}
+        auditId={exportAuditId}
+        onStartAudit={() => { setIsExportModalOpen(false); setIsAuditModalOpen(true); }}
       />
 
       <SignInModal

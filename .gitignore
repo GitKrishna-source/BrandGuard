@@ -10,3 +10,5 @@ backend/__pycache__
 backend/**/__pycache__
 backend/*.db
 backend/*.egg-info
+tmp/pdfs/
+output/pdf/

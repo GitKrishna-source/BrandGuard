@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from .auth import authenticate, create_access_token, get_current_user, require_r
 from .config import get_settings
 from .db import Base, engine, get_db
 from .models import Audit, BrandPolicy, Review, Revision
+from .reports import AuditReport, build_report, capture_policy, render_report_pdf
 from .schemas import (
     AuditCreate,
     AuditResponse,
@@ -133,7 +135,8 @@ def create_audit(
         score=score,
         status="needs_review",
         response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
-                  "analysis_engine": engine, "data_handling": audit_data_handling(engine)},
+                  "analysis_engine": engine, "data_handling": audit_data_handling(engine),
+                  "policy_snapshot": capture_policy(policy), "content_coverage": "full_text"},
     )
     db.add(audit)
     db.commit()
@@ -166,7 +169,10 @@ def create_upload_audit(
         policy_id=policy.id, content_type=content_type, content=preview,
         score=score, status="needs_review",
         response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
-                  "analysis_engine": engine, "data_handling": audit_data_handling(engine)},
+                  "analysis_engine": engine, "data_handling": audit_data_handling(engine),
+                  "policy_snapshot": capture_policy(policy),
+                  "content_coverage": "image_not_retained" if content_type == "image" else "full_text",
+                  "source_filename": (file.filename or "upload").replace("\\", "/").rsplit("/", 1)[-1]},
     )
     db.add(audit)
     db.commit()
@@ -174,7 +180,7 @@ def create_upload_audit(
     return AuditResponse(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
-        content_preview=preview, analysis_engine=engine,
+        content_preview=preview[:4000], analysis_engine=engine,
         data_handling=audit_data_handling(engine), created_at=audit.created_at,
     )
 
@@ -224,7 +230,9 @@ def create_revision(
         policy_id=policy.id, content_type="text", content=payload.content, score=score,
         status="needs_review",
         response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
-                  "analysis_engine": engine, "data_handling": audit_data_handling(engine)},
+                  "analysis_engine": engine, "data_handling": audit_data_handling(engine),
+                  "policy_snapshot": capture_policy(policy), "content_coverage": "full_text",
+                  "source_filename": parent.response.get("source_filename")},
     )
     db.add(audit)
     db.flush()
@@ -249,6 +257,29 @@ def list_revisions(
     return list(db.scalars(
         select(Revision).where(Revision.parent_audit_id == audit_id).order_by(Revision.created_at)
     ))
+
+
+@app.get("/api/audits/{audit_id}/report", response_model=AuditReport)
+def get_audit_report(
+    audit_id: str, response: Response, db: Session = Depends(get_db),
+    user: dict[str, str] = Depends(get_current_user),
+) -> AuditReport:
+    response.headers["Cache-Control"] = "no-store"
+    return build_report(db, accessible_audit(db, audit_id, user))
+
+
+@app.get("/api/audits/{audit_id}/report.pdf", response_class=Response,
+         responses={200: {"content": {"application/pdf": {}}}})
+def download_audit_report(
+    audit_id: str, db: Session = Depends(get_db),
+    user: dict[str, str] = Depends(get_current_user),
+) -> Response:
+    audit = accessible_audit(db, audit_id, user)
+    return Response(
+        content=render_report_pdf(build_report(db, audit)), media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="BrandGuard_Audit_{audit.id}.pdf"',
+                 "Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/insights", response_model=GovernanceInsights)
@@ -305,6 +336,10 @@ def create_review(
         raise HTTPException(status_code=403, detail="High-severity findings require legal approval")
     review = Review(audit_id=audit_id, **payload.model_dump())
     db.add(review)
+    db.flush()
+    audit.response = {**audit.response, "review_authors": {
+        **audit.response.get("review_authors", {}), review.id: user["username"]
+    }}
     if payload.status in {"approved", "rejected", "changes_requested"}:
         audit.status = payload.status
     db.commit()

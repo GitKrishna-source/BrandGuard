@@ -107,6 +107,21 @@ export interface ReviewResponse {
 }
 
 export interface AuthUser { username: string; role: Role }
+export interface ApiAuditReport {
+  report_version: string;
+  generated_at: string;
+  audit: ApiAuditResponse;
+  owner: string | null;
+  source_filename: string | null;
+  policy_snapshot: BrandPolicyResponse | null;
+  content: string;
+  content_coverage: 'full_text' | 'retained_excerpt' | 'image_not_retained';
+  content_sha256: string | null;
+  automated_assessment: 'ai_review' | 'local_checks' | 'not_recorded';
+  required_reviewer: 'manager_or_legal' | 'legal';
+  reviews: Array<ReviewResponse & { reviewer_username: string | null }>;
+  notes: string[];
+}
 export interface LoginResponse { access_token: string; token_type: string; user: AuthUser }
 
 export interface ImageAuditResponse {

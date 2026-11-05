@@ -14,15 +14,16 @@ import {
 } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import type { ApiAuditResponse, ImageAuditResponse, ModalProps, TextAuditResponse } from '../../types';
-import { createRevision, createTextAudit, uploadAudit } from '../../lib/api';
+import { createRevision, createTextAudit, getAuditReport, uploadAudit } from '../../lib/api';
 
 interface AuditModalProps extends ModalProps {
   policyId: string | null;
   initialText?: string;
   onAuditComplete: (audit: ApiAuditResponse) => void;
+  onExportAudit: (id: string) => void;
 }
 
-export default function AuditModal({ isOpen, onClose, policyId, initialText, onAuditComplete }: AuditModalProps) {
+export default function AuditModal({ isOpen, onClose, policyId, initialText, onAuditComplete, onExportAudit }: AuditModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
     initialText || 'Our company offers the cheapest cloud hosting in the world. We are guaranteed 100% bug-free with infinite scalability. Contact our customer support rep today!'
@@ -31,6 +32,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
   const [auditResult, setAuditResult] = useState<TextAuditResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [currentAuditId, setCurrentAuditId] = useState<string | null>(null);
+  const [lastSavedAuditId, setLastSavedAuditId] = useState<string | null>(null);
   const [dataHandling, setDataHandling] = useState<string | null>(null);
   const [analysisEngine, setAnalysisEngine] = useState<string | null>(null);
 
@@ -46,6 +48,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
     if (initialText) {
       setCustomText(initialText);
       setCurrentAuditId(null);
+      setLastSavedAuditId(null);
       setAuditResult(null);
     }
   }, [initialText]);
@@ -74,6 +77,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
     });
     onAuditComplete(response);
     setCurrentAuditId(response.id);
+    setLastSavedAuditId(response.id);
     setDataHandling(response.data_handling || null);
     setAnalysisEngine(response.analysis_engine || null);
   };
@@ -123,6 +127,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
             })),
           });
           onAuditComplete(response);
+          setLastSavedAuditId(response.id);
           setDataHandling(response.data_handling || null);
           setAnalysisEngine(response.analysis_engine || null);
         })
@@ -139,8 +144,9 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
       setIsAuditing(true);
       setApiError(null);
       uploadAudit(policyId, file)
-        .then((response) => {
-          setCustomText(response.content_preview || `[Parsed from ${file.name}]`);
+        .then(async (response) => {
+          const savedReport = await getAuditReport(response.id);
+          setCustomText(savedReport.content);
           applyApiAudit(response);
           setActiveTab('text');
         })
@@ -438,7 +444,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
 
         {/* Modal Footer */}
         <div className="p-4 bg-[#191226] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
-          <span>Enterprise Rule Engine v2.4 Active</span>
+          {lastSavedAuditId ? <button disabled={isAuditing} className="text-violet-300 disabled:opacity-50" onClick={() => onExportAudit(lastSavedAuditId)}>Export saved audit</button> : <span>Run an audit to save a report.</span>}
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
