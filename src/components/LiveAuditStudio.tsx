@@ -29,13 +29,11 @@ export default function LiveAuditStudio({
   const [fixedF2, setFixedF2] = useState(false);
   const [isFixingF1, setIsFixingF1] = useState(false);
   const [isFixingF2, setIsFixingF2] = useState(false);
-  const [latency, setLatency] = useState(46);
 
   // Reset fix states whenever the active preset changes
   useEffect(() => {
     setFixedF1(false);
     setFixedF2(false);
-    setLatency(Math.floor(Math.random() * 15) + 38);
   }, [preset.id]);
 
   // Trigger celebration when both issues are fixed
@@ -45,7 +43,7 @@ export default function LiveAuditStudio({
         particleCount: 80,
         spread: 60,
         origin: { y: 0.6 },
-        colors: ['#14f195', '#38bdf8', '#ffffff']
+        colors: ['#c4b5fd', '#a78bfa', '#f0abfc', '#ffffff']
       });
     }
   }, [fixedF1, fixedF2]);
@@ -82,12 +80,16 @@ export default function LiveAuditStudio({
   };
 
   return (
-    <section id="live-audit-studio" className="max-w-6xl mx-auto px-4 sm:px-6 my-10">
+    <section id="live-audit-studio" className="studio-section max-w-6xl mx-auto px-5 sm:px-7 pt-12 pb-3">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div><span className="eyebrow mb-3"><Sparkles className="h-3.5 w-3.5" />A peek inside the studio</span><h2 className="section-heading text-white">Small edits. <span className="gradient-text">Big confidence.</span></h2></div>
+        <p className="max-w-xs text-xs leading-6 text-[#a193b3]">Explore a sample review below, or launch an audit to try your own content.</p>
+      </div>
       {/* Outer Mac-like Terminal Frame */}
-      <div className="rounded-2xl border border-slate-800 bg-[#080d19] shadow-2xl shadow-cyan-950/20 overflow-hidden backdrop-blur-xl">
+      <div className="studio-frame">
         
         {/* Terminal Header Bar */}
-        <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-[#0a101f] border-b border-slate-800/90 gap-2">
+        <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-[#191226] border-b border-slate-800/90 gap-2">
           {/* Left: Window Controls + Workspace filename */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
@@ -107,18 +109,18 @@ export default function LiveAuditStudio({
           <div className="flex items-center gap-3">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-[10px] font-mono text-emerald-400">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Real-time Engine Active</span>
+              <span>Interactive sample</span>
             </div>
             
             <span className="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
-              Lat: {latency}ms
+              Demo workspace
             </span>
 
             {(fixedF1 || fixedF2) && (
               <button
                 onClick={handleReset}
                 title="Reset simulation to initial draft"
-                className="text-[10px] font-mono text-slate-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+                className="text-[10px] font-mono text-slate-400 hover:text-violet-300 flex items-center gap-1 transition-colors"
               >
                 <RefreshCw className="w-3 h-3" />
                 <span className="hidden sm:inline">Reset</span>
@@ -133,13 +135,13 @@ export default function LiveAuditStudio({
           {/* ======================================================== */}
           {/* LEFT COLUMN: LIVE DRAFT CONTENT STREAM (7 columns)       */}
           {/* ======================================================== */}
-          <div className="lg:col-span-7 flex flex-col justify-between bg-[#080d19]/95 p-4 sm:p-6">
+          <div className="lg:col-span-7 flex flex-col justify-between bg-[#0e0a18]/95 p-4 sm:p-6">
             <div>
               {/* Draft Section Header */}
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800/60">
-                <div className="flex items-center gap-2 text-cyan-400 font-mono text-xs font-semibold tracking-wider uppercase">
-                  <FileText className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>LIVE DRAFT CONTENT STREAM</span>
+                <div className="flex items-center gap-2 text-violet-400 font-mono text-xs font-semibold tracking-wider uppercase">
+                  <FileText className="w-3.5 h-3.5 text-violet-400" />
+                  <span>SAMPLE DRAFT</span>
                 </div>
                 
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded border transition-colors ${
@@ -244,7 +246,7 @@ export default function LiveAuditStudio({
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-slate-500">Target Persona:</span>
-                <span className="text-cyan-400">{preset.persona}</span>
+                <span className="text-violet-400">{preset.persona}</span>
               </div>
             </div>
           </div>
@@ -252,7 +254,7 @@ export default function LiveAuditStudio({
           {/* ======================================================== */}
           {/* RIGHT COLUMN: BrandGuard Intelligence Inspector (5 cols)  */}
           {/* ======================================================== */}
-          <div className="lg:col-span-5 flex flex-col justify-between bg-[#0a101f] p-4 sm:p-6">
+          <div className="lg:col-span-5 flex flex-col justify-between bg-[#191226] p-4 sm:p-6">
             <div className="space-y-4">
               {/* Inspector Header & Readiness Meter */}
               <div className="flex items-start justify-between pb-3 border-b border-slate-800/80">
@@ -272,7 +274,7 @@ export default function LiveAuditStudio({
                       readinessScore === 100 
                         ? 'text-emerald-400' 
                         : readinessScore >= 80 
-                        ? 'text-cyan-400' 
+                        ? 'text-violet-400'
                         : 'text-amber-400'
                     }`}>
                       {readinessScore} / 100
@@ -390,10 +392,10 @@ export default function LiveAuditStudio({
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
                     <span className="text-slate-400">Voice-Tone: {preset.voiceTone}</span>
-                    <span className="text-cyan-400 font-semibold">{preset.voiceToneScore}</span>
+                    <span className="text-violet-400 font-semibold">{preset.voiceToneScore}</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-400 rounded-full transition-all duration-500" style={{ width: '91%' }} />
+                    <div className="h-full bg-violet-400 rounded-full transition-all duration-500" style={{ width: '91%' }} />
                   </div>
                 </div>
 
@@ -406,7 +408,7 @@ export default function LiveAuditStudio({
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-500" style={{ width: '100%' }} />
+                    <div className="h-full bg-gradient-to-r from-violet-400 to-emerald-400 rounded-full transition-all duration-500" style={{ width: '100%' }} />
                   </div>
                 </div>
               </div>

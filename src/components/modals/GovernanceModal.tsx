@@ -17,7 +17,7 @@ export default function GovernanceModal({ isOpen, onClose }: ModalProps) {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4">
-      <section role="dialog" aria-modal="true" aria-label="Governance insights" className="w-full max-w-2xl max-h-[90vh] overflow-auto rounded-xl border border-slate-800 bg-[#090e1a] p-6 space-y-4">
+      <section role="dialog" aria-modal="true" aria-label="Governance insights" className="w-full max-w-2xl max-h-[90vh] overflow-auto rounded-xl border border-slate-800 bg-[#130f20] p-6 space-y-4">
         <button className="float-right" onClick={onClose}>Close</button>
         <h2 className="text-lg font-bold">Governance insights</h2>
         {error && <p role="alert">{error}</p>}

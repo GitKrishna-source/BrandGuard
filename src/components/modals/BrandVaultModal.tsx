@@ -60,12 +60,12 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#090e1a] border border-slate-800 shadow-2xl text-slate-200">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#130f20] border border-slate-800 shadow-2xl text-slate-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-[#0a101f]">
+        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-[#191226]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+            <div className="w-9 h-9 rounded-lg bg-violet-950/60 border border-violet-500/40 flex items-center justify-center text-violet-400">
               <Database className="w-5 h-5" />
             </div>
             <div>
@@ -90,17 +90,17 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
           <h3 className="font-semibold">Active audit policy</h3>
           <p className="text-xs text-slate-400">Use exact approved statements for facts. Actionable guidelines use <code>tone: phrase =&gt; replacement</code>, <code>messaging: phrase =&gt; replacement</code>, or <code>palette: #112233, #FFFFFF</code>.</p>
           <textarea aria-label="Active policy JSON" className="min-h-40 w-full rounded-lg bg-slate-950 p-3 font-mono text-xs" value={policyDraft} readOnly={currentRole === 'creator'} onChange={(event) => setPolicyDraft(event.target.value)} />
-          {currentRole !== 'creator' && <button className="rounded bg-cyan-400 px-4 py-2 text-sm text-slate-950" disabled={saving || !policyDraft} onClick={() => void savePolicy()}>Save policy</button>}
+          {currentRole !== 'creator' && <button className="rounded bg-violet-400 px-4 py-2 text-sm text-slate-950" disabled={saving || !policyDraft} onClick={() => void savePolicy()}>Save policy</button>}
           <p role="status">{status}</p>
         </section>
         <p className="px-5 text-sm text-slate-400">Sample brand reference below</p>
         {/* Tabs */}
-        <div className="flex border-b border-slate-800 bg-[#080d19] px-5 pt-3 gap-2 overflow-x-auto">
+        <div className="flex border-b border-slate-800 bg-[#0e0a18] px-5 pt-3 gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab('colors')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'colors'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -112,7 +112,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
             onClick={() => setActiveTab('facts')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'facts'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -124,7 +124,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
             onClick={() => setActiveTab('lexicon')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'lexicon'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -136,7 +136,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
             onClick={() => setActiveTab('tone')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'tone'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -157,7 +157,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
                 {BRAND_VAULT.colorPalette.map((col, idx) => (
                   <div
                     key={idx}
-                    className="p-3.5 rounded-xl bg-[#080d19] border border-slate-800 flex items-center justify-between"
+                    className="p-3.5 rounded-xl bg-[#0e0a18] border border-slate-800 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -173,7 +173,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
 
                     <button
                       onClick={() => handleCopy(col.hex)}
-                      className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition-colors"
+                      className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-violet-400 transition-colors"
                       title="Copy Hex"
                     >
                       {copiedHex === col.hex ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -194,11 +194,11 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
                 {BRAND_VAULT.verifiedFacts.map((fact, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-xl bg-[#080d19] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="p-4 rounded-xl bg-[#0e0a18] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 font-bold">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-950/70 border border-violet-500/30 text-violet-300 font-bold">
                           {fact.claimId}
                         </span>
                         <span className="text-xs font-semibold text-white">{fact.topic}</span>
@@ -225,7 +225,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
                 {BRAND_VAULT.bannedLexicon.map((lex, idx) => (
                   <div
                     key={idx}
-                    className="p-3.5 rounded-xl bg-[#080d19] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono"
+                    className="p-3.5 rounded-xl bg-[#0e0a18] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono"
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-rose-300 bg-rose-950/60 border border-rose-500/40 px-2.5 py-1 rounded line-through">
@@ -254,15 +254,15 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
                 {BRAND_VAULT.toneArchetypes.map((tone, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-xl bg-[#080d19] border border-slate-800 space-y-2"
+                    className="p-4 rounded-xl bg-[#0e0a18] border border-slate-800 space-y-2"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-white">{tone.attribute}</span>
-                      <span className="text-[11px] font-mono text-cyan-400 font-semibold">{tone.target}</span>
+                      <span className="text-[11px] font-mono text-violet-400 font-semibold">{tone.target}</span>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">{tone.description}</p>
                     <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-cyan-400 rounded-full" style={{ width: '92%' }} />
+                      <div className="h-full bg-violet-400 rounded-full" style={{ width: '92%' }} />
                     </div>
                   </div>
                 ))}
@@ -272,7 +272,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-[#0a101f] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
+        <div className="p-4 bg-[#191226] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
           <span>Policies are stored in BrandGuard.</span>
           <button
             onClick={onClose}

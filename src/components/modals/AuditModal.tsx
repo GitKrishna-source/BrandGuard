@@ -151,12 +151,12 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#090e1a] border border-slate-800 shadow-2xl text-slate-200">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#130f20] border border-slate-800 shadow-2xl text-slate-200">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-[#0a101f]">
+        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-[#191226]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+            <div className="w-9 h-9 rounded-lg bg-violet-950/60 border border-violet-500/40 flex items-center justify-center text-violet-400">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -178,12 +178,12 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
         </div>
 
         {/* Modal Tabs */}
-        <div className="flex border-b border-slate-800 bg-[#080d19] px-5 pt-3 gap-2">
+        <div className="flex border-b border-slate-800 bg-[#0e0a18] px-5 pt-3 gap-2">
           <button
             onClick={() => setActiveTab('text')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
               activeTab === 'text'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -195,7 +195,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
             onClick={() => setActiveTab('image')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
               activeTab === 'image'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -207,7 +207,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
             onClick={() => setActiveTab('document')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
               activeTab === 'document'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -227,7 +227,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCustomText('BrandGuard AI provides pre-publication governance for enterprise comms. Our verified benchmarks indicate up to 3x throughput improvements with 99.99% availability.')}
-                    className="text-[11px] font-mono text-cyan-400 hover:underline"
+                    className="text-[11px] font-mono text-violet-400 hover:underline"
                   >
                     Load Compliant Sample
                   </button>
@@ -245,7 +245,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
                 rows={5}
-                className="w-full bg-[#070a13] border border-slate-800 rounded-xl p-3 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-400 leading-relaxed"
+                className="w-full bg-[#09060f] border border-slate-800 rounded-xl p-3 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-violet-400 leading-relaxed"
                 placeholder="Paste marketing copy, press release, technical blog, or social copy here..."
               />
             </div>
@@ -258,7 +258,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
               <button
                 onClick={runTextAudit}
                 disabled={isAuditing || !policyId}
-                className="px-5 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all flex items-center gap-2"
+                className="px-5 py-2.5 bg-violet-400 hover:bg-violet-300 text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(167,139,250,0.3)] transition-all flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>{isAuditing ? 'Analyzing Content...' : !policyId ? 'Connecting to API...' : currentAuditId ? 'Save Revision & Re-audit' : 'Run Policy Audit'}</span>
@@ -272,14 +272,14 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
             )}
 
             {dataHandling && (
-              <div className="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-3 text-[11px] font-mono text-slate-400">
+              <div className="mt-3 rounded-lg border border-violet-500/20 bg-violet-950/20 p-3 text-[11px] font-mono text-slate-400">
                 Analysis engine: {analysisEngine || 'BrandGuard policy engine'}. {dataHandling}
               </div>
             )}
 
             {/* Results */}
             {auditResult && (
-              <div className="mt-5 p-5 rounded-xl bg-[#080d19] border border-slate-800 space-y-4">
+              <div className="mt-5 p-5 rounded-xl bg-[#0e0a18] border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono text-slate-400">Readiness Score:</span>
@@ -291,7 +291,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                   </div>
 
                   <span className="text-xs font-mono text-slate-400">
-                    Workflow: <strong className="text-cyan-300">{auditResult.tone}</strong>
+                    Workflow: <strong className="text-violet-300">{auditResult.tone}</strong>
                   </span>
                 </div>
 
@@ -331,7 +331,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
         {/* Tab 2: Image Audit */}
         {activeTab === 'image' && (
           <div className="p-6 space-y-5">
-            <div className="border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-2xl p-8 text-center transition-all bg-[#080d19]">
+            <div className="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-2xl p-8 text-center transition-all bg-[#0e0a18]">
               <input
                 type="file"
                 accept="image/*"
@@ -340,7 +340,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                 onChange={handleImageUpload}
               />
               <label htmlFor="img-upload-input" className="cursor-pointer block">
-                <div className="w-12 h-12 rounded-xl bg-cyan-950/50 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 rounded-xl bg-violet-950/50 border border-violet-500/30 text-violet-400 flex items-center justify-center mx-auto mb-3">
                   <ImageIcon className="w-6 h-6" />
                 </div>
                 <h4 className="text-sm font-semibold text-white mb-1">
@@ -356,7 +356,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
             </div>
 
             {imagePreview && (
-              <div className="p-5 rounded-xl bg-[#080d19] border border-slate-800 space-y-4">
+              <div className="p-5 rounded-xl bg-[#0e0a18] border border-slate-800 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
                   <div className="rounded-lg overflow-hidden border border-slate-700 max-h-60 flex items-center justify-center bg-black">
                     <img src={imagePreview} alt="Asset preview" className="max-h-60 object-contain" />
@@ -370,7 +370,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                       </div>
                       <div>
                         <span className="text-slate-500 block text-[10px]">PALETTE CONFORMANCE:</span>
-                        <span className="text-cyan-300">{imageAuditResult.primaryPaletteMatch}</span>
+                        <span className="text-violet-300">{imageAuditResult.primaryPaletteMatch}</span>
                       </div>
                       <div>
                         <span className="text-slate-500 block text-[10px]">LOGO CLEAR SPACE:</span>
@@ -382,7 +382,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                       </div>
                     </div>
                   ) : (
-                    <div className="text-xs font-mono text-cyan-400 animate-pulse">
+                    <div className="text-xs font-mono text-violet-400 animate-pulse">
                       {apiError || 'Waiting for visual policy results…'}
                     </div>
                   )}
@@ -395,7 +395,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
         {/* Tab 3: Document Audit */}
         {activeTab === 'document' && (
           <div className="p-6 space-y-5">
-            <div className="border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-2xl p-8 text-center transition-all bg-[#080d19]">
+            <div className="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-2xl p-8 text-center transition-all bg-[#0e0a18]">
               <input
                 type="file"
                 accept=".pdf,.docx,.txt,.md"
@@ -404,7 +404,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                 onChange={handleDocUpload}
               />
               <label htmlFor="doc-upload-input" className="cursor-pointer block">
-                <div className="w-12 h-12 rounded-xl bg-cyan-950/50 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 rounded-xl bg-violet-950/50 border border-violet-500/30 text-violet-400 flex items-center justify-center mx-auto mb-3">
                   <Upload className="w-6 h-6" />
                 </div>
                 <h4 className="text-sm font-semibold text-white mb-1">
@@ -437,7 +437,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
         )}
 
         {/* Modal Footer */}
-        <div className="p-4 bg-[#0a101f] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
+        <div className="p-4 bg-[#191226] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
           <span>Enterprise Rule Engine v2.4 Active</span>
           <button
             onClick={onClose}

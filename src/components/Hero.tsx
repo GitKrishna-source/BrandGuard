@@ -1,103 +1,72 @@
-import React, { useState } from 'react';
-import { ArrowUpRight, Search, ShieldAlert, Sparkles, Terminal } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, ArrowUpRight, Check, FileText, Fingerprint, ScanLine, ShieldCheck, Sparkles, WandSparkles } from 'lucide-react';
 import type { FormEvent } from 'react';
 
 interface HeroProps { activePresetId: string; onSelectPreset: (id: string) => void; onScanQuery: (query: string) => void }
-interface HeroPreset { id: string; label: string; sampleQuery: string }
+const presets = [
+  { id: 'press-release', label: 'Press release', sampleQuery: 'Our flagship deployment generated $4.2M in instantaneous net savings.' },
+  { id: 'launch-copy', label: 'Product launch', sampleQuery: 'Our new release is guaranteed 10x faster than legacy enterprise tools.' },
+  { id: 'banned-terms', label: 'Brand terminology', sampleQuery: 'Stop using trash legacy tools and growth-hack your brand.' },
+  { id: 'source-fact', label: 'Fact check', sampleQuery: 'BrandGuard holds certified ISO-99999 Quantum Cryptography endorsement.' },
+];
+
 export default function Hero({ activePresetId, onSelectPreset, onScanQuery }: HeroProps) {
-  const [query, setQuery] = useState('Our new release is guaranteed 10x faster than legacy enterprise to');
+  const [query, setQuery] = useState('Our new release is guaranteed 10x faster than legacy enterprise tools.');
 
-  const presets: HeroPreset[] = [
-    { id: 'press-release', label: 'Press Release ($4.2M Metric Claim)', sampleQuery: 'Our flagship deployment generated $4.2M in instantaneous net savings' },
-    { id: 'launch-copy', label: 'Product Launch Copy', sampleQuery: 'Our new release is guaranteed 10x faster than legacy enterprise to' },
-    { id: 'banned-terms', label: 'Banned Terminology Check', sampleQuery: 'Stop using trash legacy tools and growth-hack your brand' },
-    { id: 'source-fact', label: 'Source-Fact Verification', sampleQuery: 'BrandGuard holds certified ISO-99999 Quantum Cryptography endorsement' },
-  ];
-
-  const handlePresetClick = (preset: HeroPreset) => {
-    setQuery(preset.sampleQuery);
-    onSelectPreset(preset.id);
-  };
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (onScanQuery) {
-      onScanQuery(query);
-    }
-  };
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (query.trim()) onScanQuery(query);
+  }
 
   return (
-    <section className="relative pt-12 pb-8 sm:pt-16 sm:pb-12 text-center max-w-5xl mx-auto px-4 sm:px-6">
-      {/* Background ambient lighting */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none -z-10" />
-
-      {/* Pill Badge */}
-      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/80 border border-cyan-500/30 text-[10px] sm:text-xs font-mono font-medium text-cyan-300 tracking-wider uppercase mb-7 shadow-[0_0_20px_rgba(56,189,248,0.15)]">
-        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-        <span>ZERO HALLUCINATION</span>
-        <span className="text-slate-600">•</span>
-        <span>PRE-PUBLICATION GOVERNANCE</span>
-        <span className="text-slate-600">•</span>
-        <span>FACT AUDITING</span>
-      </div>
-
-      {/* Main Headline */}
-      <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-6 leading-[1.1]">
-        Guard Your Brand<br />
-        Before You <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-cyan-200">Publish.</span>
-      </h1>
-
-      {/* Subtitle */}
-      <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-400 leading-relaxed font-normal mb-8">
-        The real-time pre-publication AI governance engine for high-velocity teams.
-        <br className="hidden sm:inline" />
-        {' '}Catch unapproved claims, factual discrepancies, tone breaches, and
-        <br className="hidden sm:inline" />
-        {' '}regulatory drift in milliseconds.
-      </p>
-
-      {/* Interactive Scan Input Bar */}
-      <form onSubmit={handleSubmit} className="max-w-2xl mx-auto mb-6">
-        <div className="relative flex items-center bg-[#0b101d]/90 border border-slate-700/80 hover:border-cyan-500/50 rounded-xl p-1.5 shadow-2xl backdrop-blur-md transition-all focus-within:border-cyan-400 focus-within:shadow-[0_0_25px_rgba(56,189,248,0.2)]">
-          <div className="pl-3 pr-2 text-slate-400">
-            <ShieldAlert className="w-4 h-4 text-cyan-400" />
+    <section className="mx-auto max-w-6xl px-5 sm:px-7">
+      <div className="hero-layout">
+        <div className="hero-copy relative z-10">
+          <div className="hero-eyebrow mb-7 flex flex-wrap items-center gap-3">
+            <span className="hero-label inline-flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-violet-300" />A little intelligence. A lot of confidence.</span>
           </div>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Type any claim or sentence to audit against corporate brand truth..."
-            className="w-full bg-transparent text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none font-mono py-1 px-1"
-          />
-          <button
-            type="submit"
-            className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-100 text-slate-950 font-semibold text-xs rounded-lg transition-all active:scale-95 shadow-sm"
-          >
-            <span>SCAN NOW</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          <h1 className="hero-title mb-6 text-white">
+            Big ideas.<br /><span className="gradient-text">Zero brand drift.</span>
+          </h1>
+          <p className="mb-7 max-w-lg text-[15px] leading-7 text-[#a69bb7] sm:text-base">
+            Create boldly. Publish confidently. Give every draft a second pair of eyes for brand voice, facts, and the details that matter.
+          </p>
+          <form onSubmit={handleSubmit} className="scan-composer glass-panel mb-4 text-left">
+            <label htmlFor="hero-draft" className="mb-2 flex items-center gap-2 text-[11px] font-medium text-[#d1c2e7]"><FileText className="h-3.5 w-3.5 text-violet-300" />Your next great draft starts here</label>
+            <textarea id="hero-draft" value={query} onChange={(event) => setQuery(event.target.value)} rows={2} placeholder="Paste a claim, headline, or a few lines of your draft..." className="mb-3 w-full resize-none bg-transparent text-sm leading-6 text-[#c6bdd5] placeholder:text-[#796b8f] focus:outline-none" />
+            <div className="hero-submit-row flex items-center justify-between gap-3 border-t border-violet-300/10 pt-3">
+              <span className="hero-assurance inline-flex items-center gap-1.5 whitespace-nowrap text-[10px] text-[#9586aa]"><ShieldCheck className="h-3.5 w-3.5" />Your rules. Your voice.</span>
+              <button type="submit" disabled={!query.trim()} className="purple-button shrink-0 whitespace-nowrap px-4 py-2.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"><Sparkles className="h-3.5 w-3.5" />Audit my draft<ArrowUpRight className="h-3.5 w-3.5" /></button>
+            </div>
+          </form>
+          <div className="hero-preset-row flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[10px] text-[#7d708f]">Or try:</span>
+            {presets.map((preset) => <button type="button" key={preset.id} data-active={activePresetId === preset.id} className="hero-presets" onClick={() => { setQuery(preset.sampleQuery); onSelectPreset(preset.id); }}>{preset.label}</button>)}
+          </div>
         </div>
-      </form>
 
-      {/* Preset Checks Buttons */}
-      <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-mono text-slate-400">
-        <span className="text-slate-500 text-[11px] font-sans pr-1">Preset checks:</span>
-        {presets.map((preset) => {
-          const isActive = activePresetId === preset.id;
-          return (
-            <button
-              key={preset.id}
-              onClick={() => handlePresetClick(preset)}
-              className={`px-3 py-1 rounded-md text-[11px] transition-all border ${
-                isActive
-                  ? 'bg-slate-800 text-cyan-300 border-cyan-500/50 shadow-[0_0_12px_rgba(56,189,248,0.2)] font-medium'
-                  : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
-              }`}
-            >
-              {preset.label}
-            </button>
-          );
-        })}
+        <div className="hero-art" aria-label="Illustration of a draft moving through brand review">
+          <div className="hero-art-glow" aria-hidden="true" />
+          <div className="orbit-ring" aria-hidden="true" /><div className="orbit-ring orbit-ring-outer" aria-hidden="true" />
+          <Sparkles className="sparkle-decor right-10 top-9 h-6 w-6" aria-hidden="true" />
+          <Sparkles className="sparkle-decor bottom-20 left-1 h-4 w-4" aria-hidden="true" />
+          <div className="hero-core" aria-hidden="true"><ShieldCheck className="h-14 w-14" strokeWidth={1.2} /></div>
+          <div className="float-card float-card-top glass-panel">
+            <div className="mb-3 flex items-center gap-2"><span className="mini-icon"><ScanLine className="h-4 w-4" /></span><div><p className="text-xs font-semibold text-[#efe7fa]">A fresh perspective</p><p className="text-[10px] text-[#8f7fa5]">Before you hit publish</p></div></div>
+            <div className="space-y-2"><div className="h-1.5 w-full rounded bg-violet-200/10" /><div className="h-1.5 w-4/5 rounded bg-violet-200/10" /><div className="h-1.5 w-3/5 rounded bg-gradient-to-r from-violet-400/50 to-fuchsia-300/30" /></div>
+          </div>
+          <div className="float-card float-card-side glass-panel">
+            <div className="mb-3 flex items-center gap-2"><Fingerprint className="h-5 w-5 text-violet-300" /><span className="text-xs font-semibold text-[#e6daf6]">Uniquely your brand.</span></div>
+            <div className="space-y-2 text-[10px] text-[#aa9aba]">{['Voice & tone', 'Approved terminology', 'Evidence-backed claims'].map((text) => <p key={text} className="flex items-center gap-2"><Check className="h-3 w-3 text-violet-300" />{text}</p>)}</div>
+          </div>
+          <div className="float-card float-card-bottom glass-panel">
+            <div className="flex items-center gap-2.5"><span className="mini-icon"><WandSparkles className="h-4 w-4" /></span><div><p className="text-xs font-semibold text-[#efe7fa]">Good ideas, better wording.</p><p className="mt-1 text-[10px] text-[#a697b8]">Thoughtful suggestions. Human decisions.</p></div></div>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-4 border-t border-violet-300/10 py-5 text-[11px] text-[#8a7b9e]">
+        <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_10px_#c4b5fd]" />Made for the way your team creates</span>
+        <span className="ml-auto hidden items-center gap-2 text-[#baa4d7] sm:flex">A smarter review starts below<ArrowRight className="h-3.5 w-3.5" /></span>
       </div>
     </section>
   );

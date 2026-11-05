@@ -63,12 +63,12 @@ export default function ExportReportModal({ isOpen, onClose, preset }: ExportRep
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#090e1a] border border-slate-800 shadow-2xl text-slate-200">
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#130f20] border border-slate-800 shadow-2xl text-slate-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-[#0a101f]">
+        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-[#191226]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+            <div className="w-9 h-9 rounded-lg bg-violet-950/60 border border-violet-500/40 flex items-center justify-center text-violet-400">
               <FileCheck className="w-5 h-5" />
             </div>
             <div>
@@ -90,12 +90,12 @@ export default function ExportReportModal({ isOpen, onClose, preset }: ExportRep
         </div>
 
         {/* Format Selector Tabs */}
-        <div className="flex border-b border-slate-800 bg-[#080d19] px-5 pt-3 gap-2">
+        <div className="flex border-b border-slate-800 bg-[#0e0a18] px-5 pt-3 gap-2">
           <button
             onClick={() => setActiveFormat('certificate')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
               activeFormat === 'certificate'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -107,7 +107,7 @@ export default function ExportReportModal({ isOpen, onClose, preset }: ExportRep
             onClick={() => setActiveFormat('json')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
               activeFormat === 'json'
-                ? 'border-cyan-400 text-cyan-300 font-semibold'
+                ? 'border-violet-400 text-violet-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -119,10 +119,10 @@ export default function ExportReportModal({ isOpen, onClose, preset }: ExportRep
         {/* Certificate View */}
         {activeFormat === 'certificate' && (
           <div className="p-6 space-y-5">
-            <div className="p-6 rounded-2xl bg-[#080d19] border border-cyan-500/30 space-y-5 shadow-inner">
+            <div className="p-6 rounded-2xl bg-[#0e0a18] border border-violet-500/30 space-y-5 shadow-inner">
               <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-2">
                 <div>
-                  <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">
+                  <div className="text-[10px] font-mono text-violet-400 uppercase tracking-widest">
                     BRANDGUARD PRE-PUBLICATION AUDIT PASS
                   </div>
                   <h3 className="text-base font-bold text-white mt-0.5">
@@ -164,7 +164,7 @@ export default function ExportReportModal({ isOpen, onClose, preset }: ExportRep
                 <span className="text-slate-500 text-[10px] block uppercase">
                   CRYPTOGRAPHIC IMMUTABLE ATTESTATION:
                 </span>
-                <span className="text-cyan-300 break-all">{auditReportData.cryptographicHash}</span>
+                <span className="text-violet-300 break-all">{auditReportData.cryptographicHash}</span>
               </div>
 
               {/* Signatures */}
@@ -200,7 +200,7 @@ export default function ExportReportModal({ isOpen, onClose, preset }: ExportRep
         {activeFormat === 'json' && (
           <div className="p-6 space-y-4">
             <div className="relative">
-              <pre className="p-4 rounded-xl bg-[#070a13] border border-slate-800 font-mono text-xs text-cyan-300 overflow-x-auto max-h-96 leading-relaxed">
+              <pre className="p-4 rounded-xl bg-[#09060f] border border-slate-800 font-mono text-xs text-violet-300 overflow-x-auto max-h-96 leading-relaxed">
                 {jsonString}
               </pre>
 
@@ -216,7 +216,7 @@ export default function ExportReportModal({ isOpen, onClose, preset }: ExportRep
             <div className="flex justify-end gap-3">
               <button
                 onClick={handleDownloadJSON}
-                className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 bg-violet-400 hover:bg-violet-300 text-slate-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Download audit_report.json</span>
@@ -226,7 +226,7 @@ export default function ExportReportModal({ isOpen, onClose, preset }: ExportRep
         )}
 
         {/* Footer */}
-        <div className="p-4 bg-[#0a101f] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
+        <div className="p-4 bg-[#191226] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
           <span>Compliant with SEC Safe Harbor & GDPR Directives</span>
           <button
             onClick={onClose}

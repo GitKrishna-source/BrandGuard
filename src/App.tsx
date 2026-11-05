@@ -101,10 +101,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070a13] text-slate-100 flex flex-col relative selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="brand-shell min-h-screen text-slate-100 flex flex-col relative selection:bg-violet-500/30 selection:text-violet-200">
       {/* Background ambient lighting and grid pattern */}
-      <div className="fixed inset-0 bg-grid-pattern opacity-40 pointer-events-none z-0" />
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-cyan-600/5 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className="ambient-scene" aria-hidden="true">
+        <div className="ambient-orb ambient-orb-one" />
+        <div className="ambient-orb ambient-orb-two" />
+        <div className="ambient-orb ambient-orb-three" />
+        <div className="ambient-grid" />
+      </div>
 
       {/* Main Content Layers */}
       <div className="relative z-10 flex flex-col min-h-screen">
@@ -156,7 +160,7 @@ export default function App() {
         <Footer
           onOpenWhitepaper={() => setIsExportModalOpen(true)}
           onOpenDocs={() => setIsVaultModalOpen(true)}
-          onOpenStatus={() => alert("BrandGuard Global Cluster Status: 99.99% Operational SLA (Latency 42ms)")}
+          onOpenStatus={() => alert("Welcome to the BrandGuard hackathon demo. Choose a demo role, audit a draft against your brand rules, and explore the review workflow.")}
         />
       </div>
 
