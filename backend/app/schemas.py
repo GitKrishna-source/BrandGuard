@@ -42,6 +42,29 @@ class Finding(BaseModel):
     source: str
 
 
+class RetrievedSource(BaseModel):
+    citation_id: str
+    document_id: str
+    filename: str
+    page: int
+    chunk_id: str
+    text: str
+    document_sha256: str
+    relevance: float
+
+
+class GuidelineDocumentResponse(BaseModel):
+    id: str
+    policy_id: str
+    brand_name: str
+    filename: str
+    page_count: int
+    chunk_count: int
+    sha256: str
+    shared_demo: bool
+    retrieval_method: str = "BM25 keyword retrieval over page-labelled PDF passages"
+
+
 class AuditResponse(BaseModel):
     id: str
     policy_id: str
@@ -53,6 +76,8 @@ class AuditResponse(BaseModel):
     analysis_engine: str = "BrandGuard deterministic policy engine"
     data_handling: str = "No external AI service receives drafts. Draft text or excerpts and results are retained."
     parent_audit_id: str | None = None
+    retrieved_sources: list[RetrievedSource] = Field(default_factory=list)
+    retrieval_method: str | None = None
     created_at: datetime
 
 

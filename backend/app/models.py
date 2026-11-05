@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, LargeBinary, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -32,6 +32,21 @@ class Audit(Base):
     response: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     policy: Mapped[BrandPolicy] = relationship()
+
+
+class GuidelineDocument(Base):
+    __tablename__ = "guideline_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    policy_id: Mapped[str] = mapped_column(ForeignKey("brand_policies.id"), unique=True, index=True)
+    filename: Mapped[str] = mapped_column(String(240))
+    owner: Mapped[str] = mapped_column(String(160))
+    shared_demo: Mapped[bool] = mapped_column(default=False)
+    sha256: Mapped[str] = mapped_column(String(64))
+    page_count: Mapped[int] = mapped_column(Integer)
+    chunks: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    pdf_data: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class Review(Base):

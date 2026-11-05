@@ -72,6 +72,8 @@ def build_report(db: Session, audit: Audit) -> AuditReport:
         content_preview=audit.content[:4000], analysis_engine=engine,
         data_handling=metadata.get("data_handling", "Provider usage was not recorded."),
         parent_audit_id=parent, created_at=utc(audit.created_at),
+        retrieved_sources=metadata.get("retrieved_sources", []),
+        retrieval_method=metadata.get("retrieval_method"),
     )
     reviews = [
         ReportReview(
@@ -174,6 +176,13 @@ def render_report_pdf(report: AuditReport) -> bytes:
         story += [p(f"{index}. {label(finding.category)} / {finding.severity.upper()}", heading),
                   p(finding.message), p("Evidence: " + finding.evidence),
                   p("Suggestion: " + finding.suggestion), p("Policy source: " + finding.source, small)]
+    if audit.retrieval_method:
+        story += [p("Retrieved guideline evidence", heading), p(audit.retrieval_method, small)]
+        if not audit.retrieved_sources:
+            story.append(p("No relevant source passage was retrieved. Missing facts are not inferred."))
+        for source in audit.retrieved_sources:
+            story += [p(f"[{source.citation_id}] {source.filename} / page {source.page} / {source.chunk_id}", heading),
+                      p(source.text), p("Source PDF SHA-256: " + source.document_sha256, small)]
     if not report.reviews:
         story += [p("02 / Human review history", heading),
                   p("No human reviews have been recorded for this revision.")]

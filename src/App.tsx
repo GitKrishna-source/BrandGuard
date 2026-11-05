@@ -147,6 +147,8 @@ export default function App() {
       {/* Interactive Modals */}
       <AuditModal
         key={currentRole}
+        currentRole={currentRole}
+        onContextChange={() => { setLatestAudit(null); setExportAuditId(undefined); }}
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
         initialText={auditQuery || undefined}
@@ -155,6 +157,7 @@ export default function App() {
       />
 
       <BrandVaultModal
+        onOpenAudit={() => { setIsVaultModalOpen(false); setIsAuditModalOpen(true); }}
         isOpen={isVaultModalOpen}
         onClose={() => setIsVaultModalOpen(false)}
       />

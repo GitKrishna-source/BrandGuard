@@ -1,4 +1,4 @@
-import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, GovernanceInsightsResponse, LoginResponse, ReviewResponse, Role } from '../types';
+import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, GovernanceInsightsResponse, GuidelineDocumentResponse, LoginResponse, ReviewResponse, Role } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const TOKEN_KEY = 'brandguard_access_token';
@@ -69,10 +69,10 @@ export function updatePolicy(policyId: string, policy: Partial<Omit<BrandPolicyR
   });
 }
 
-export function createTextAudit(content: string): Promise<ApiAuditResponse> {
+export function createTextAudit(content: string, policyId?: string): Promise<ApiAuditResponse> {
   return request<ApiAuditResponse>('/api/audits', {
     method: 'POST',
-    body: JSON.stringify({ content_type: 'text', content }),
+    body: JSON.stringify({ content_type: 'text', content, policy_id: policyId }),
   });
 }
 
@@ -108,10 +108,32 @@ export async function downloadAuditPdf(id: string): Promise<Blob> {
   return response.blob();
 }
 
-export function uploadAudit(file: File): Promise<ApiAuditResponse> {
+export function uploadAudit(file: File, policyId?: string): Promise<ApiAuditResponse> {
   const form = new FormData();
   form.append('file', file);
+  if (policyId) form.append('policy_id', policyId);
   return request<ApiAuditResponse>('/api/audits/upload', { method: 'POST', body: form, headers: {} });
+}
+
+export function loadBootwearDemo(): Promise<GuidelineDocumentResponse> {
+  return request('/api/demo/bootwear', { method: 'POST' });
+}
+
+export function importGuidelinePdf(brandName: string, file: File): Promise<GuidelineDocumentResponse> {
+  const form = new FormData();
+  form.append('brand_name', brandName);
+  form.append('file', file);
+  return request('/api/guidelines/import', { method: 'POST', body: form });
+}
+
+export async function downloadGuidelinePdf(documentId?: string): Promise<Blob> {
+  const headers = new Headers();
+  const token = getAccessToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const path = documentId ? `/api/guidelines/${documentId}/pdf` : '/api/demo/bootwear/guidelines.pdf';
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers });
+  if (!response.ok) throw new Error('Unable to download guidelines. Sign in and try again.');
+  return response.blob();
 }
 
 export function createReview(

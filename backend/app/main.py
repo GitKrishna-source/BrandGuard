@@ -10,9 +10,18 @@ from sqlalchemy.orm import Session
 from .auth import authenticate, create_access_token, get_current_user, require_roles
 from .config import get_settings
 from .db import Base, engine, get_db
-from .models import Audit, BrandPolicy, Review, Revision
+from .models import Audit, BrandPolicy, GuidelineDocument, Review, Revision
 from .policies import BASIC_POLICY_ID, get_basic_policy
 from .reports import AuditReport, build_report, capture_policy, render_report_pdf
+from .retrieval import (
+    BOOTWEAR_PDF,
+    RETRIEVAL_METHOD,
+    audit_sources,
+    bootwear_document,
+    check_document_access,
+    document_info,
+    import_guidelines,
+)
 from .schemas import (
     AuditCreate,
     AuditResponse,
@@ -23,6 +32,7 @@ from .schemas import (
     ContentTypeInsight,
     DemoLoginRequest,
     GovernanceInsights,
+    GuidelineDocumentResponse,
     HealthResponse,
     LoginRequest,
     LoginResponse,
@@ -36,6 +46,7 @@ from .services import (
     audit_data_handling,
     audit_text_with_provider,
     audit_uploaded_file_with_provider,
+    extract_document_text,
 )
 
 settings = get_settings()
@@ -98,7 +109,84 @@ def create_policy(
 
 @app.get("/api/policies", response_model=list[BrandPolicyResponse])
 def list_policies(db: Session = Depends(get_db), _: dict[str, str] = Depends(get_current_user)) -> list[BrandPolicy]:
-    return list(db.scalars(select(BrandPolicy).order_by(BrandPolicy.created_at.desc())))
+    policies = list(db.scalars(select(BrandPolicy).order_by(BrandPolicy.created_at.desc())))
+    if _["role"] == "creator":
+        private = set(db.scalars(select(GuidelineDocument.policy_id).where(
+            GuidelineDocument.shared_demo.is_(False), GuidelineDocument.owner != _["username"])))
+        policies = [policy for policy in policies if policy.id not in private]
+    return policies
+
+
+@app.post("/api/demo/bootwear", response_model=GuidelineDocumentResponse)
+def load_bootwear_demo(db: Session = Depends(get_db), _: dict[str, str] = Depends(get_current_user)):
+    document = bootwear_document(db)
+    db.commit()
+    return document_info(document, db)
+
+
+@app.get("/api/demo/bootwear/guidelines.pdf")
+def download_bootwear_guidelines(_: dict[str, str] = Depends(get_current_user)):
+    return Response(BOOTWEAR_PDF.read_bytes(), media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="Bootwear_Brand_Guidelines.pdf"',
+        "Cache-Control": "no-store",
+    })
+
+
+@app.post("/api/guidelines/import", response_model=GuidelineDocumentResponse, status_code=201)
+def import_guideline_pdf(
+    brand_name: str = Form(..., min_length=1, max_length=160), file: UploadFile = File(...),
+    db: Session = Depends(get_db), user: dict[str, str] = Depends(require_roles("manager", "legal")),
+):
+    data = file.file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail="Guideline PDF exceeds the upload limit")
+    if not (file.filename or "").lower().endswith(".pdf") or not data.startswith(b"%PDF-"):
+        raise HTTPException(status_code=422, detail="Import a text-based PDF guideline document")
+    name = brand_name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Enter a brand name")
+    try:
+        document = import_guidelines(db, data, file.filename, name, user["username"])
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=422, detail="Unable to extract guideline PDF text") from error
+    db.commit()
+    return document_info(document, db)
+
+
+@app.get("/api/guidelines/{document_id}/pdf")
+def download_guideline_source(document_id: str, db: Session = Depends(get_db),
+                              user: dict[str, str] = Depends(get_current_user)):
+    document = db.get(GuidelineDocument, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Guideline document not found")
+    check_document_access(document, user)
+    return Response(document.pdf_data, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="Guidelines_{document.id}.pdf"',
+        "Cache-Control": "no-store",
+    })
+
+
+def source_metadata(sources):
+    if sources is None:
+        return {}
+    return {"retrieved_sources": [source.model_dump() for source in sources],
+            "retrieval_method": RETRIEVAL_METHOD}
+
+
+def run_text_audit(db, policy, user, content):
+    sources = audit_sources(db, policy.id, user, content)
+    result = (audit_text_with_provider(content, policy) if sources is None else
+              audit_text_with_provider(content, policy, sources))
+    return *result, sources
+
+
+def source_data_handling(engine, sources):
+    notice = audit_data_handling(engine)
+    if sources is not None:
+        notice += " Guideline PDFs are retained in the database. When AI is used, retrieved passages accompany the request; indexing and retrieval run locally."
+    return notice
 
 
 @app.patch("/api/policies/{policy_id}", response_model=BrandPolicyResponse)
@@ -110,6 +198,8 @@ def update_policy(
 ) -> BrandPolicy:
     if policy_id == BASIC_POLICY_ID:
         raise HTTPException(status_code=409, detail="General audit defaults cannot be edited. Create a separate brand policy instead.")
+    if db.scalar(select(GuidelineDocument.id).where(GuidelineDocument.policy_id == policy_id)):
+        raise HTTPException(status_code=409, detail="Import a new PDF to create a new guideline version; source-backed policies are immutable.")
     policy = db.get(BrandPolicy, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
@@ -130,7 +220,7 @@ def create_audit(
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
 
-    score, findings, engine = audit_text_with_provider(payload.content, policy)
+    score, findings, engine, sources = run_text_audit(db, policy, user, payload.content)
     audit = Audit(
         policy_id=policy.id,
         content_type=payload.content_type,
@@ -138,7 +228,8 @@ def create_audit(
         score=score,
         status="needs_review",
         response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
-                  "analysis_engine": engine, "data_handling": audit_data_handling(engine),
+                  "analysis_engine": engine, "data_handling": source_data_handling(engine, sources),
+                  **source_metadata(sources),
                   "policy_snapshot": capture_policy(policy), "content_coverage": "full_text"},
     )
     db.add(audit)
@@ -148,7 +239,7 @@ def create_audit(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
         content_preview=payload.content[:4000], analysis_engine=engine,
-        data_handling=audit_data_handling(engine), created_at=audit.created_at,
+        data_handling=source_data_handling(engine, sources), **source_metadata(sources), created_at=audit.created_at,
     )
 
 
@@ -164,7 +255,13 @@ def create_upload_audit(
     if len(data) > settings.max_upload_bytes:
         raise HTTPException(status_code=413, detail="Upload exceeds the configured size limit")
     try:
-        score, findings, engine, preview = audit_uploaded_file_with_provider(file.filename or "upload", file.content_type, data, policy)
+        query = ("logo palette visual contrast accessibility" if (file.content_type or "").startswith("image/")
+                 else extract_document_text(file.filename or "upload", data))
+        sources = audit_sources(db, policy.id, user, query)
+        score, findings, engine, preview = audit_uploaded_file_with_provider(
+            file.filename or "upload", file.content_type, data, policy, sources)
+    except HTTPException:
+        raise
     except Exception as error:
         raise HTTPException(status_code=422, detail="Unable to parse uploaded content") from error
     content_type = "image" if (file.content_type or "").startswith("image/") else "document"
@@ -172,7 +269,8 @@ def create_upload_audit(
         policy_id=policy.id, content_type=content_type, content=preview,
         score=score, status="needs_review",
         response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
-                  "analysis_engine": engine, "data_handling": audit_data_handling(engine),
+                  "analysis_engine": engine, "data_handling": source_data_handling(engine, sources),
+                  **source_metadata(sources),
                   "policy_snapshot": capture_policy(policy),
                   "content_coverage": "image_not_retained" if content_type == "image" else "full_text",
                   "source_filename": (file.filename or "upload").replace("\\", "/").rsplit("/", 1)[-1]},
@@ -184,7 +282,7 @@ def create_upload_audit(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
         content_preview=preview[:4000], analysis_engine=engine,
-        data_handling=audit_data_handling(engine), created_at=audit.created_at,
+        data_handling=source_data_handling(engine, sources), **source_metadata(sources), created_at=audit.created_at,
     )
 
 
@@ -210,6 +308,8 @@ def list_audits(
                 "data_handling", "Provider usage was not recorded for this older audit."
             ),
             parent_audit_id=parents.get(audit.id), created_at=audit.created_at,
+            retrieved_sources=audit.response.get("retrieved_sources", []),
+            retrieval_method=audit.response.get("retrieval_method"),
         )
         for audit in audits
     ]
@@ -228,12 +328,13 @@ def create_revision(
     policy = db.get(BrandPolicy, parent.policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
-    score, findings, engine = audit_text_with_provider(payload.content, policy)
+    score, findings, engine, sources = run_text_audit(db, policy, user, payload.content)
     audit = Audit(
         policy_id=policy.id, content_type="text", content=payload.content, score=score,
         status="needs_review",
         response={"owner": user["username"], "findings": [finding.model_dump() for finding in findings],
-                  "analysis_engine": engine, "data_handling": audit_data_handling(engine),
+                  "analysis_engine": engine, "data_handling": source_data_handling(engine, sources),
+                  **source_metadata(sources),
                   "policy_snapshot": capture_policy(policy), "content_coverage": "full_text",
                   "source_filename": parent.response.get("source_filename")},
     )
@@ -248,7 +349,7 @@ def create_revision(
         id=audit.id, policy_id=audit.policy_id, content_type=audit.content_type,
         score=audit.score, status=audit.status, findings=findings,
         content_preview=audit.content[:4000], analysis_engine=engine,
-        data_handling=audit_data_handling(engine), created_at=audit.created_at,
+        data_handling=source_data_handling(engine, sources), **source_metadata(sources), created_at=audit.created_at,
     )
 
 

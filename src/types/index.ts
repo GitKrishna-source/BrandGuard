@@ -85,6 +85,31 @@ export interface ApiAuditResponse {
   parent_audit_id?: string | null;
   data_handling?: string;
   created_at: string;
+  retrieved_sources?: RetrievedSource[];
+  retrieval_method?: string | null;
+}
+
+export interface RetrievedSource {
+  citation_id: string;
+  document_id: string;
+  filename: string;
+  page: number;
+  chunk_id: string;
+  text: string;
+  document_sha256: string;
+  relevance: number;
+}
+
+export interface GuidelineDocumentResponse {
+  id: string;
+  policy_id: string;
+  brand_name: string;
+  filename: string;
+  page_count: number;
+  chunk_count: number;
+  sha256: string;
+  shared_demo: boolean;
+  retrieval_method: string;
 }
 
 export interface GovernanceInsightsResponse {

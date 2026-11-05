@@ -7,7 +7,8 @@ It reviews content against approved brand guidelines, facts, terminology, and as
 ## Product capabilities
 
 - Start a general content audit immediately: paste text or upload a document, with no brand setup. Checks cover clarity, tone, grammar, and claims needing evidence.
-- New UI audits use neutral rules instead of selecting an existing company policy. Saved policies and historical audit snapshots remain unchanged. Optional brand guidelines in the UI are a future feature; the sample vault is illustrative only.
+- General audits use neutral rules. For a source-backed demo, choose **Use Bootwear PDF** in the audit studio, or import an approved PDF as a Manager or Legal reviewer.
+- The Bootwear Brand Vault offers a six-page fictional shoe-brand source book and judge walkthrough. Retrieved PDF passages are cited in findings, saved with each revision, and included in audit reports.
 - Audit text for tone, terminology, unsupported claims, and approved facts.
 - Upload and audit Markdown, plaintext, PDF, DOCX, and image assets.
 - Explain findings with evidence, source policy, severity, and suggested corrections.
@@ -26,6 +27,20 @@ It reviews content against approved brand guidelines, facts, terminology, and as
 - Authentication: JWT bearer tokens with Argon2 password-hash support
 - File parsing: Pillow, pypdf, python-docx
 - Tooling: Git, GitHub, ESLint, Ruff, pytest, Docker Compose
+
+## Bootwear PDF and RAG demo
+
+1. Sign in with a demo role, launch the audit studio, and click **Use Bootwear PDF**.
+2. Download the guidelines to inspect the fictional brand rules, product facts, and judge exercise.
+3. Load the Bootwear test draft and audit it. Expand **PDF evidence used in this audit** to inspect the exact source pages and passages.
+4. Load the source-consistent sample, save a revision, and compare the actual findings and score. Human review is still required.
+5. Manager and Legal roles can expand **Import an approved guideline PDF** to define a separate source-backed brand policy.
+
+This is lexical RAG: pypdf extraction, page-labelled chunks, local BM25 retrieval, then the configured Groq/Gemini audit using the retrieved passages. It does not require an embedding API or vector database. The judge exercise page is excluded from the evidence index so deliberately false test copy cannot become approved evidence.
+
+The canonical demo PDF ships at `backend/app/assets/bootwear-brand-guidelines.pdf`. Rebuild it with `python backend/scripts/build_bootwear_pdf.py`; this also writes a judge handout under `output/pdf/`. Bootwear and all catalogue facts are fictional demo inputs, not independently verified real-world claims.
+
+Source PDFs and extracted passages are retained in the database. Source-backed policies are immutable; importing a new PDF creates a new policy version. Creators cannot read or audit against another user's private imported source; Manager and Legal roles retain workspace review access. Relevant passages and the draft accompany configured external AI requests. Local fallback is explicitly labelled and applies limited rules rather than claiming a completed contextual AI review.
 
 ## Repository structure
 

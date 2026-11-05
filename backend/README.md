@@ -5,7 +5,9 @@ FastAPI service for brand policies, explainable content audits, and human review
 The frontend starts general content audits with no brand setup or policy selection.
 Omit `policy_id` on text or upload requests to use neutral clarity, tone, grammar,
 accessibility, and evidence rules. Existing company policies are never selected automatically.
-The sample Brand Vault is illustrative only; optional brand guidelines in the UI will come later.
+The Bootwear Brand Vault offers a downloadable, fictional shoe-brand guideline PDF and a judge walkthrough.
+Use **Use Bootwear PDF** in the studio to activate the shared demo, or import a text-based guideline
+PDF as a Manager or Legal reviewer. General audits remain available.
 
 The API still accepts an explicit `policy_id` for callers with custom rules. Old audit records,
 policy snapshots, review decisions, and revision links remain intact. General defaults are
@@ -13,6 +15,35 @@ versioned and protected from policy edits. No database schema migration or envir
 is required. Without the selected provider's key, the engine applies limited rules locally.
 Local checks detect common promotional claims, rankings, accidental repeated words, and empty
 Markdown image descriptions; contextual clarity and tone review needs the AI provider.
+
+## Source-backed audits (RAG)
+
+- `POST /api/demo/bootwear` ingests the bundled PDF once and returns its source/policy IDs.
+- `GET /api/demo/bootwear/guidelines.pdf` downloads the judge handout (requires a session).
+- `POST /api/guidelines/import` accepts `brand_name` and a PDF `file` from Manager/Legal users.
+- `GET /api/guidelines/{document_id}/pdf` downloads an accessible retained source PDF.
+- Pass the returned `policy_id` to the existing text or upload audit endpoints. Revisions reuse
+  that policy and retrieve passages again for their new content.
+
+PDFs are limited to the configured upload size, 100 pages, and 250,000 extracted characters.
+Scanned, empty, encrypted, malformed, and non-PDF sources are rejected. Pages marked as the
+Bootwear evaluation exercise are excluded from indexing. The remaining page-labelled passages
+are ranked locally with BM25 (k1=1.5, b=0.75; up to six passages; ranking aliases normalised).
+Only the selected passages are included in the RAG prompt, not the whole source book.
+
+There is no embedding service or vector database. The configured provider performs the contextual
+review. Missing or invented citation IDs trigger a disclosed local fallback. A valid citation ID
+establishes that the passage was supplied, not that the model's interpretation is correct; human
+review remains necessary. Limited fallback rules are parsed only from explicit `FACT:`, `TERM:`,
+`TONE:`, `MESSAGING:`, and `PALETTE:` source entries. Free-form PDFs remain searchable for the AI.
+
+The `guideline_documents` table is created on startup alongside the existing tables. Source PDFs,
+their SHA-256 digests, and extracted passages are retained; policies are immutable and a new
+import creates a separate version. Creators can use the shared Bootwear fixture, while another
+user's private imports are hidden from them. Manager/Legal workspace reviewers can access
+imports. Every saved audit stores its actual retrieved passages and source hashes; reports read
+that snapshot without another retrieval or AI call. Configure database persistence on deployment
+to retain imports and audits across service restarts.
 Text and extracted excerpts are stored for review.
 Image palette matching is approximate and visual accessibility still needs manual review.
 

@@ -13,16 +13,19 @@ import {
   ArrowRight
 } from 'lucide-react';
 import type { ChangeEvent } from 'react';
-import type { ApiAuditResponse, ImageAuditResponse, ModalProps, TextAuditResponse } from '../../types';
+import type { ApiAuditResponse, GuidelineDocumentResponse, ImageAuditResponse, ModalProps, RetrievedSource, Role, TextAuditResponse } from '../../types';
+import GuidelineSourcePanel from '../GuidelineSourcePanel';
 import { createRevision, createTextAudit, getAuditReport, uploadAudit } from '../../lib/api';
 
 interface AuditModalProps extends ModalProps {
+  currentRole: Role;
+  onContextChange: () => void;
   initialText?: string;
   onAuditComplete: (audit: ApiAuditResponse) => void;
   onExportAudit: (id: string) => void;
 }
 
-export default function AuditModal({ isOpen, onClose, initialText, onAuditComplete, onExportAudit }: AuditModalProps) {
+export default function AuditModal({ isOpen, onClose, currentRole, onContextChange, initialText, onAuditComplete, onExportAudit }: AuditModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
     initialText || 'Our product is guaranteed to deliver the best results. Contact our team to learn more.'
@@ -34,6 +37,10 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
   const [lastSavedAuditId, setLastSavedAuditId] = useState<string | null>(null);
   const [dataHandling, setDataHandling] = useState<string | null>(null);
   const [analysisEngine, setAnalysisEngine] = useState<string | null>(null);
+  const [guideline, setGuideline] = useState<GuidelineDocumentResponse | null>(null);
+  const [isPreparingGuidelines, setIsPreparingGuidelines] = useState(false);
+  const [retrievedSources, setRetrievedSources] = useState<RetrievedSource[]>([]);
+  const [retrievalMethod, setRetrievalMethod] = useState<string | null>(null);
 
   // Image tab states
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -49,10 +56,28 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
       setCurrentAuditId(null);
       setLastSavedAuditId(null);
       setAuditResult(null);
+      setRetrievedSources([]);
+      setRetrievalMethod(null);
+      setDataHandling(null);
+      setAnalysisEngine(null);
     }
   }, [initialText]);
 
   if (!isOpen) return null;
+
+  const changeGuideline = (document: GuidelineDocumentResponse | null) => {
+    setGuideline(document);
+    setCurrentAuditId(null);
+    setLastSavedAuditId(null);
+    setAuditResult(null);
+    setImageAuditResult(null);
+    setRetrievedSources([]);
+    setRetrievalMethod(null);
+    setDataHandling(null);
+    setAnalysisEngine(null);
+    setApiError(null);
+    onContextChange();
+  };
 
   const applyApiAudit = (response: ApiAuditResponse) => {
     const findings = response.findings.length > 0
@@ -79,6 +104,8 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
     setLastSavedAuditId(response.id);
     setDataHandling(response.data_handling || null);
     setAnalysisEngine(response.analysis_engine || null);
+    setRetrievedSources(response.retrieved_sources || []);
+    setRetrievalMethod(response.retrieval_method || null);
   };
 
   const runTextAudit = async () => {
@@ -87,7 +114,7 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
     try {
       const response = currentAuditId
         ? await createRevision(currentAuditId, customText)
-        : await createTextAudit(customText);
+        : await createTextAudit(customText, guideline?.policy_id);
       applyApiAudit(response);
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Unable to complete the audit.');
@@ -105,7 +132,7 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
       
       setIsAuditing(true);
       setApiError(null);
-      uploadAudit(file)
+      uploadAudit(file, guideline?.policy_id)
         .then((response) => {
           setImageAuditResult({
             score: response.score,
@@ -123,6 +150,8 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
           setLastSavedAuditId(response.id);
           setDataHandling(response.data_handling || null);
           setAnalysisEngine(response.analysis_engine || null);
+          setRetrievedSources(response.retrieved_sources || []);
+          setRetrievalMethod(response.retrieval_method || null);
         })
         .catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to audit image.'))
         .finally(() => setIsAuditing(false));
@@ -135,7 +164,7 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
       setDocName(file.name);
       setIsAuditing(true);
       setApiError(null);
-      uploadAudit(file)
+      uploadAudit(file, guideline?.policy_id)
         .then(async (response) => {
           const savedReport = await getAuditReport(response.id);
           setCustomText(savedReport.content);
@@ -162,7 +191,7 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
                 BrandGuard Live Multi-Content Audit Studio
               </h2>
               <p className="text-xs font-mono text-slate-400">
-                General content review · Clarity, tone, grammar, and claims needing evidence
+                {guideline ? 'PDF-grounded brand review · Retrieved evidence cited in findings' : 'General content review · Clarity, tone, grammar, and claims needing evidence'}
               </p>
             </div>
           </div>
@@ -174,6 +203,8 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        <GuidelineSourcePanel document={guideline} onChange={changeGuideline} role={currentRole} disabled={isAuditing} onLoadingChange={setIsPreparingGuidelines} />
 
         {/* Modal Tabs */}
         <div className="flex border-b border-slate-800 bg-[#0e0a18] px-5 pt-3 gap-2">
@@ -224,17 +255,17 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
                 </label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setCustomText('Contact our team to learn more about our services.')}
+                    onClick={() => setCustomText(guideline?.shared_demo ? 'Bootwear Everyday is an everyday walking shoe. Bootwear Everyday costs INR 2,499. Bootwear accepts unworn shoes within 14 days of delivery.' : 'Contact our team to learn more about our services.')}
                     className="text-[11px] font-mono text-violet-400 hover:underline"
                   >
-                    Load Neutral Sample
+                    {guideline?.shared_demo ? 'Load source-consistent sample' : 'Load Neutral Sample'}
                   </button>
                   <span className="text-slate-600">•</span>
                   <button
-                    onClick={() => setCustomText('Our software is the cheapest solution guaranteed 100% bug-free! Talk with our customer support rep.')}
+                    onClick={() => setCustomText(guideline?.shared_demo ? 'Bootwear Everyday is the #1 performance racing shoe. These kicks are 100% waterproof and cure foot pain. Buy them for INR 1,999 with returns on worn shoes for 30 days.' : 'Our software is the cheapest solution guaranteed 100% bug-free! Talk with our customer support rep.')}
                     className="text-[11px] font-mono text-rose-400 hover:underline"
                   >
-                    Load High-Risk Sample
+                    {guideline?.shared_demo ? 'Load Bootwear test draft' : 'Load High-Risk Sample'}
                   </button>
                 </div>
               </div>
@@ -251,12 +282,12 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
 
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-mono text-slate-500">
-                Checks clarity, tone, grammar, and unsupported claims
+                {guideline ? 'Checks content against retrieved PDF passages and general content standards' : 'Checks clarity, tone, grammar, and unsupported claims'}
               </span>
 
               <button
                 onClick={runTextAudit}
-                disabled={isAuditing || !customText.trim()}
+                disabled={isAuditing || isPreparingGuidelines || !customText.trim()}
                 className="px-5 py-2.5 bg-violet-400 hover:bg-violet-300 text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(167,139,250,0.3)] transition-all flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
@@ -334,6 +365,7 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
               <input
                 type="file"
                 accept="image/*"
+                disabled={isAuditing || isPreparingGuidelines}
                 id="img-upload-input"
                 className="hidden"
                 onChange={handleImageUpload}
@@ -398,6 +430,7 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
               <input
                 type="file"
                 accept=".pdf,.docx,.txt,.md"
+                disabled={isAuditing || isPreparingGuidelines}
                 id="doc-upload-input"
                 className="hidden"
                 onChange={handleDocUpload}
@@ -434,6 +467,16 @@ export default function AuditModal({ isOpen, onClose, initialText, onAuditComple
             )}
           </div>
         )}
+
+        {retrievalMethod && <details className="mx-6 mb-5 rounded-xl border border-emerald-500/20 bg-slate-950/50 p-4 text-xs">
+          <summary className="cursor-pointer font-semibold text-emerald-200">PDF evidence used in this audit ({retrievedSources.length} passages)</summary>
+          <p className="mt-3 text-slate-400">{retrievalMethod}. These saved passages support review; source consistency is not independent fact verification.</p>
+          {retrievedSources.length === 0 && <p className="mt-3 text-amber-200">No relevant passage was retrieved. Missing facts require clarification.</p>}
+          {retrievedSources.map((source) => <div key={source.citation_id} className="mt-3 rounded-lg border border-slate-800 p-3">
+            <p className="font-semibold text-emerald-200">[{source.citation_id}] {source.filename} · Page {source.page} · {source.chunk_id}</p>
+            <p className="mt-2 whitespace-pre-wrap leading-relaxed text-slate-300">{source.text}</p>
+          </div>)}
+        </details>}
 
         {/* Modal Footer */}
         <div className="p-4 bg-[#191226] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
