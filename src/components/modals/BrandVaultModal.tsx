@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Database, 
@@ -12,43 +12,11 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { BRAND_VAULT } from '../../data/brandVault';
-import type { ModalProps, Role } from '../../types';
-import { listPolicies, updatePolicy } from '../../lib/api';
+import type { ModalProps } from '../../types';
 
-export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole }: ModalProps & { policyId: string | null; currentRole: Role }) {
+export default function BrandVaultModal({ isOpen, onClose }: ModalProps) {
   const [activeTab, setActiveTab] = useState('colors'); // 'colors' | 'facts' | 'lexicon' | 'tone'
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
-  const [policyDraft, setPolicyDraft] = useState('');
-  const [status, setStatus] = useState('');
-  const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    if (!isOpen || !policyId) return;
-    let active = true;
-    setPolicyDraft('');
-    setStatus('');
-    listPolicies().then((rows) => {
-      if (!active) return;
-      const policy = rows.find((row) => row.id === policyId);
-      if (!policy) return;
-      const { guidelines, approved_facts, banned_terms, approved_terms } = policy;
-      setPolicyDraft(JSON.stringify({ guidelines, approved_facts, banned_terms, approved_terms }, null, 2));
-    }).catch((error: Error) => { if (active) setStatus(error.message); });
-    return () => { active = false; };
-  }, [isOpen, policyId]);
-
-  async function savePolicy() {
-    if (!policyId) return;
-    setSaving(true);
-    try {
-      const { guidelines, approved_facts, banned_terms, approved_terms } = JSON.parse(policyDraft);
-      await updatePolicy(policyId, { guidelines, approved_facts, banned_terms, approved_terms });
-      setStatus('Saved. New audits will use this policy.');
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not save policy.');
-    } finally {
-      setSaving(false);
-    }
-  }
 
   if (!isOpen) return null;
 
@@ -70,10 +38,10 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                Brand & Facts Truth Vault
+                Sample Brand Vault
               </h2>
               <p className="text-xs font-mono text-slate-400">
-                Single Source of Truth for Brand Colors, Tone, SEC Facts, and Banned Lexicon
+                Illustrative brand guidelines for the demo workspace
               </p>
             </div>
           </div>
@@ -87,11 +55,8 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
         </div>
 
         <section className="space-y-3 p-5">
-          <h3 className="font-semibold">Active audit policy</h3>
-          <p className="text-xs text-slate-400">Use exact approved statements for facts. Actionable guidelines use <code>tone: phrase =&gt; replacement</code>, <code>messaging: phrase =&gt; replacement</code>, or <code>palette: #112233, #FFFFFF</code>.</p>
-          <textarea aria-label="Active policy JSON" className="min-h-40 w-full rounded-lg bg-slate-950 p-3 font-mono text-xs" value={policyDraft} readOnly={currentRole === 'creator'} onChange={(event) => setPolicyDraft(event.target.value)} />
-          {currentRole !== 'creator' && <button className="rounded bg-violet-400 px-4 py-2 text-sm text-slate-950" disabled={saving || !policyDraft} onClick={() => void savePolicy()}>Save policy</button>}
-          <p role="status">{status}</p>
+          <h3 className="font-semibold">General content audit is active</h3>
+          <p className="text-xs text-slate-400">Live audits review clarity, tone, grammar, and claims needing evidence. The sample facts and terminology below are not applied to your content. Optional brand guidelines will come later.</p>
         </section>
         <p className="px-5 text-sm text-slate-400">Sample brand reference below</p>
         {/* Tabs */}
@@ -188,7 +153,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
           {activeTab === 'facts' && (
             <div className="space-y-4">
               <div className="text-xs text-slate-400 font-mono mb-3">
-                Ground-truth corporate database indexed with vector embeddings. AI compares marketing and PR claims directly against these verifiable records.
+                Illustrative corporate facts and source labels for the demo. These records are not evidence used by live audits.
               </div>
               <div className="space-y-3">
                 {BRAND_VAULT.verifiedFacts.map((fact, idx) => (
@@ -273,7 +238,7 @@ export default function BrandVaultModal({ isOpen, onClose, policyId, currentRole
 
         {/* Modal Footer */}
         <div className="p-4 bg-[#191226] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
-          <span>Policies are stored in BrandGuard.</span>
+          <span>Sample reference only · Not used in live audits</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"

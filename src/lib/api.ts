@@ -69,10 +69,10 @@ export function updatePolicy(policyId: string, policy: Partial<Omit<BrandPolicyR
   });
 }
 
-export function createTextAudit(policyId: string, content: string): Promise<ApiAuditResponse> {
+export function createTextAudit(content: string): Promise<ApiAuditResponse> {
   return request<ApiAuditResponse>('/api/audits', {
     method: 'POST',
-    body: JSON.stringify({ policy_id: policyId, content_type: 'text', content }),
+    body: JSON.stringify({ content_type: 'text', content }),
   });
 }
 
@@ -108,9 +108,8 @@ export async function downloadAuditPdf(id: string): Promise<Blob> {
   return response.blob();
 }
 
-export function uploadAudit(policyId: string, file: File): Promise<ApiAuditResponse> {
+export function uploadAudit(file: File): Promise<ApiAuditResponse> {
   const form = new FormData();
-  form.append('policy_id', policyId);
   form.append('file', file);
   return request<ApiAuditResponse>('/api/audits/upload', { method: 'POST', body: form, headers: {} });
 }

@@ -15,8 +15,7 @@ import ExportReportModal from './components/modals/ExportReportModal';
 import SignInModal from './components/modals/SignInModal';
 
 import { PRESETS } from './data/presets';
-import { BRAND_VAULT } from './data/brandVault';
-import { createPolicy, demoLogin, getAccessToken, getCurrentUser, listPolicies, logout } from './lib/api';
+import { demoLogin, getAccessToken, getCurrentUser, logout } from './lib/api';
 import type { ApiAuditResponse, Role } from './types';
 
 export default function App() {
@@ -29,7 +28,6 @@ export default function App() {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(() => !getAccessToken());
   const [currentRole, setCurrentRole] = useState<Role>('creator');
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
-  const [policyId, setPolicyId] = useState<string | null>(null);
   const [auditQuery, setAuditQuery] = useState('');
   const [latestAudit, setLatestAudit] = useState<ApiAuditResponse | null>(null);
   const [exportAuditId, setExportAuditId] = useState<string | undefined>();
@@ -43,33 +41,6 @@ export default function App() {
         setIsAuthenticated(false);
         setIsSignInModalOpen(true);
       });
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let isMounted = true;
-    const loadPolicy = async () => {
-      try {
-        const policies = await listPolicies();
-        if (policies[0]) {
-          if (isMounted) setPolicyId(policies[0].id);
-          return;
-        }
-
-        const policy = await createPolicy({
-          name: `${BRAND_VAULT.company} default policy`,
-          guidelines: BRAND_VAULT.toneArchetypes.map((tone) => `${tone.attribute}: ${tone.description}`),
-          approved_facts: BRAND_VAULT.verifiedFacts.map((fact) => fact.verifiedData),
-          banned_terms: BRAND_VAULT.bannedLexicon.map((term) => term.forbidden),
-          approved_terms: Object.fromEntries(BRAND_VAULT.bannedLexicon.map((term) => [term.forbidden, term.approved])),
-        });
-        if (isMounted) setPolicyId(policy.id);
-      } catch (error) {
-        console.error('Unable to connect to BrandGuard API', error);
-      }
-    };
-    void loadPolicy();
-    return () => { isMounted = false; };
   }, [isAuthenticated]);
 
   const handleSignIn = async (role: Role) => {
@@ -169,7 +140,7 @@ export default function App() {
         <Footer
           onOpenWhitepaper={() => handleExportAudit(latestAudit?.id)}
           onOpenDocs={() => setIsVaultModalOpen(true)}
-          onOpenStatus={() => alert("Welcome to the BrandGuard hackathon demo. Choose a demo role, audit a draft against your brand rules, and explore the review workflow.")}
+          onOpenStatus={() => alert("Welcome to the BrandGuard hackathon demo. Choose a demo role, audit a draft for clarity and unsupported claims, and explore the review workflow.")}
         />
       </div>
 
@@ -178,15 +149,12 @@ export default function App() {
         key={currentRole}
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
-        policyId={policyId}
         initialText={auditQuery || undefined}
         onAuditComplete={setLatestAudit}
         onExportAudit={handleExportAudit}
       />
 
       <BrandVaultModal
-        policyId={policyId}
-        currentRole={currentRole}
         isOpen={isVaultModalOpen}
         onClose={() => setIsVaultModalOpen(false)}
       />

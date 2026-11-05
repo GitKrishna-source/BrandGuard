@@ -2,10 +2,17 @@
 
 FastAPI service for brand policies, explainable content audits, and human reviews.
 
-In the frontend, open **Brand Vault** as a manager or legal reviewer to edit the active policy.
-Use exact approved sentences for facts, and guideline entries such as
-`tone: cheap => cost-effective`, `messaging: old name => current name`, or
-`palette: #112233, #FFFFFF`. Without the selected provider's key, the engine applies rules locally.
+The frontend starts general content audits with no brand setup or policy selection.
+Omit `policy_id` on text or upload requests to use neutral clarity, tone, grammar,
+accessibility, and evidence rules. Existing company policies are never selected automatically.
+The sample Brand Vault is illustrative only; optional brand guidelines in the UI will come later.
+
+The API still accepts an explicit `policy_id` for callers with custom rules. Old audit records,
+policy snapshots, review decisions, and revision links remain intact. General defaults are
+versioned and protected from policy edits. No database schema migration or environment change
+is required. Without the selected provider's key, the engine applies limited rules locally.
+Local checks detect common promotional claims, rankings, accidental repeated words, and empty
+Markdown image descriptions; contextual clarity and tone review needs the AI provider.
 Text and extracted excerpts are stored for review.
 Image palette matching is approximate and visual accessibility still needs manual review.
 

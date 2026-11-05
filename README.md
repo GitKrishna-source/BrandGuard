@@ -6,6 +6,8 @@ It reviews content against approved brand guidelines, facts, terminology, and as
 
 ## Product capabilities
 
+- Start a general content audit immediately: paste text or upload a document, with no brand setup. Checks cover clarity, tone, grammar, and claims needing evidence.
+- New UI audits use neutral rules instead of selecting an existing company policy. Saved policies and historical audit snapshots remain unchanged. Optional brand guidelines in the UI are a future feature; the sample vault is illustrative only.
 - Audit text for tone, terminology, unsupported claims, and approved facts.
 - Upload and audit Markdown, plaintext, PDF, DOCX, and image assets.
 - Explain findings with evidence, source policy, severity, and suggested corrections.
@@ -125,6 +127,7 @@ The backend always enforces permissions; hiding a button in the frontend is not 
 - `GET /api/policies` — list brand policies
 - `POST /api/policies` — create a policy
 - `POST /api/audits` — audit text content
+- Omit `policy_id` for a general audit; explicit policy IDs remain supported by the API. Uploads also accept an omitted `policy_id`. The versioned general policy is created automatically and cannot be edited.
 - `POST /api/audits/upload` — audit a document or image upload
 - `GET /api/audits/{audit_id}/report` — report JSON for an accessible saved revision
 - `GET /api/audits/{audit_id}/report.pdf` — downloadable PDF of the saved revision and its reviews

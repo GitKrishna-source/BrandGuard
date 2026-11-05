@@ -17,16 +17,15 @@ import type { ApiAuditResponse, ImageAuditResponse, ModalProps, TextAuditRespons
 import { createRevision, createTextAudit, getAuditReport, uploadAudit } from '../../lib/api';
 
 interface AuditModalProps extends ModalProps {
-  policyId: string | null;
   initialText?: string;
   onAuditComplete: (audit: ApiAuditResponse) => void;
   onExportAudit: (id: string) => void;
 }
 
-export default function AuditModal({ isOpen, onClose, policyId, initialText, onAuditComplete, onExportAudit }: AuditModalProps) {
+export default function AuditModal({ isOpen, onClose, initialText, onAuditComplete, onExportAudit }: AuditModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
-    initialText || 'Our company offers the cheapest cloud hosting in the world. We are guaranteed 100% bug-free with infinite scalability. Contact our customer support rep today!'
+    initialText || 'Our product is guaranteed to deliver the best results. Contact our team to learn more.'
   );
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<TextAuditResponse | null>(null);
@@ -65,8 +64,8 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
           suggestedFix: finding.suggestion,
         }))
       : [{
-          type: 'Brand Compliance', severity: 'Clean', quote: 'All text compliant',
-          explanation: 'The API found no policy violations in this content.',
+          type: 'General content review', severity: 'Clean', quote: 'No issues detected',
+          explanation: 'This check found no issues. It does not independently verify facts or grant approval.',
           suggestedFix: 'Send the draft for human review.',
         }];
     setAuditResult({
@@ -83,17 +82,12 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
   };
 
   const runTextAudit = async () => {
-    if (!policyId) {
-      setApiError('Brand policy is still loading. Start the audit again in a moment.');
-      return;
-    }
-
     setIsAuditing(true);
     setApiError(null);
     try {
       const response = currentAuditId
         ? await createRevision(currentAuditId, customText)
-        : await createTextAudit(policyId, customText);
+        : await createTextAudit(customText);
       applyApiAudit(response);
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Unable to complete the audit.');
@@ -109,15 +103,14 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
       const url = URL.createObjectURL(file);
       setImagePreview(url);
       
-      if (!policyId) return;
       setIsAuditing(true);
       setApiError(null);
-      uploadAudit(policyId, file)
+      uploadAudit(file)
         .then((response) => {
           setImageAuditResult({
             score: response.score,
-            primaryPaletteMatch: response.findings[0]?.message || 'Visual policy review completed',
-            logoPlacement: response.findings[0]?.suggestion || 'Requires policy-aware visual review',
+            primaryPaletteMatch: response.findings[0]?.message || 'No issues detected by this visual check',
+            logoPlacement: response.findings[0]?.suggestion || 'Review the asset before publication.',
             accessibilityContrast: 'Requires accessibility contrast verification',
             flags: response.findings.map((finding) => ({
               severity: finding.severity,
@@ -140,10 +133,9 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
     const file = e.target.files?.[0];
     if (file) {
       setDocName(file.name);
-      if (!policyId) return;
       setIsAuditing(true);
       setApiError(null);
-      uploadAudit(policyId, file)
+      uploadAudit(file)
         .then(async (response) => {
           const savedReport = await getAuditReport(response.id);
           setCustomText(savedReport.content);
@@ -170,7 +162,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                 BrandGuard Live Multi-Content Audit Studio
               </h2>
               <p className="text-xs font-mono text-slate-400">
-                Audit Text, Images & Documents against corporate brand truth before publication
+                General content review · Clarity, tone, grammar, and claims needing evidence
               </p>
             </div>
           </div>
@@ -206,7 +198,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
             }`}
           >
             <ImageIcon className="w-3.5 h-3.5" />
-            <span>Image & Visual Brand Audit</span>
+            <span>Image & Visual Review</span>
           </button>
 
           <button
@@ -227,15 +219,15 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
           <div className="p-6 space-y-5">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-mono text-slate-300 uppercase tracking-wider">
+                <label htmlFor="audit-draft" className="text-xs font-mono text-slate-300 uppercase tracking-wider">
                   Draft Content Input:
                 </label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setCustomText('BrandGuard AI provides pre-publication governance for enterprise comms. Our verified benchmarks indicate up to 3x throughput improvements with 99.99% availability.')}
+                    onClick={() => setCustomText('Contact our team to learn more about our services.')}
                     className="text-[11px] font-mono text-violet-400 hover:underline"
                   >
-                    Load Compliant Sample
+                    Load Neutral Sample
                   </button>
                   <span className="text-slate-600">•</span>
                   <button
@@ -248,6 +240,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
               </div>
 
               <textarea
+                id="audit-draft"
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
                 rows={5}
@@ -258,16 +251,16 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
 
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-mono text-slate-500">
-                Checks tone, SEC rules, unverified facts, banned terminology, and grammar
+                Checks clarity, tone, grammar, and unsupported claims
               </span>
 
               <button
                 onClick={runTextAudit}
-                disabled={isAuditing || !policyId}
+                disabled={isAuditing || !customText.trim()}
                 className="px-5 py-2.5 bg-violet-400 hover:bg-violet-300 text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(167,139,250,0.3)] transition-all flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>{isAuditing ? 'Analyzing Content...' : !policyId ? 'Connecting to API...' : currentAuditId ? 'Save Revision & Re-audit' : 'Run Policy Audit'}</span>
+                <span>{isAuditing ? 'Analyzing Content...' : currentAuditId ? 'Save Revision & Re-audit' : 'Audit content'}</span>
               </button>
             </div>
 
@@ -375,11 +368,11 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                         <span className="text-emerald-400 font-bold">{imageAuditResult.score} / 100</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[10px]">PALETTE CONFORMANCE:</span>
+                        <span className="text-slate-500 block text-[10px]">VISUAL REVIEW:</span>
                         <span className="text-violet-300">{imageAuditResult.primaryPaletteMatch}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[10px]">LOGO CLEAR SPACE:</span>
+                        <span className="text-slate-500 block text-[10px]">RECOMMENDATION:</span>
                         <span className="text-emerald-300">{imageAuditResult.logoPlacement}</span>
                       </div>
                       <div>
@@ -389,7 +382,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                     </div>
                   ) : (
                     <div className="text-xs font-mono text-violet-400 animate-pulse">
-                      {apiError || 'Waiting for visual policy results…'}
+                      {apiError || 'Waiting for visual review results…'}
                     </div>
                   )}
                 </div>
@@ -414,7 +407,7 @@ export default function AuditModal({ isOpen, onClose, policyId, initialText, onA
                   <Upload className="w-6 h-6" />
                 </div>
                 <h4 className="text-sm font-semibold text-white mb-1">
-                  Upload Document for Batch Governance Scanning
+                  Upload a document for content review
                 </h4>
                 <p className="text-xs text-slate-400 font-mono mb-4">
                   Accepts PDF, Microsoft Word (.docx), Markdown (.md), or Plaintext

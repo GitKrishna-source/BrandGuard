@@ -28,7 +28,7 @@ class BrandPolicyUpdate(BaseModel):
 
 
 class AuditCreate(BaseModel):
-    policy_id: str
+    policy_id: str | None = None
     content_type: Literal["text", "document", "image"] = "text"
     content: str = Field(min_length=1)
 

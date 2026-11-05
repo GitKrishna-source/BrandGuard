@@ -11,6 +11,7 @@ from .auth import authenticate, create_access_token, get_current_user, require_r
 from .config import get_settings
 from .db import Base, engine, get_db
 from .models import Audit, BrandPolicy, Review, Revision
+from .policies import BASIC_POLICY_ID, get_basic_policy
 from .reports import AuditReport, build_report, capture_policy, render_report_pdf
 from .schemas import (
     AuditCreate,
@@ -107,6 +108,8 @@ def update_policy(
     db: Session = Depends(get_db),
     _: dict[str, str] = Depends(require_roles("manager", "legal")),
 ) -> BrandPolicy:
+    if policy_id == BASIC_POLICY_ID:
+        raise HTTPException(status_code=409, detail="General audit defaults cannot be edited. Create a separate brand policy instead.")
     policy = db.get(BrandPolicy, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
@@ -123,7 +126,7 @@ def create_audit(
     db: Session = Depends(get_db),
     user: dict[str, str] = Depends(get_current_user),
 ) -> AuditResponse:
-    policy = db.get(BrandPolicy, payload.policy_id)
+    policy = get_basic_policy(db) if payload.policy_id is None else db.get(BrandPolicy, payload.policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
 
@@ -151,10 +154,10 @@ def create_audit(
 
 @app.post("/api/audits/upload", response_model=AuditResponse, status_code=status.HTTP_201_CREATED)
 def create_upload_audit(
-    policy_id: str = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db),
+    policy_id: str | None = Form(default=None), file: UploadFile = File(...), db: Session = Depends(get_db),
     user: dict[str, str] = Depends(get_current_user),
 ) -> AuditResponse:
-    policy = db.get(BrandPolicy, policy_id)
+    policy = get_basic_policy(db) if policy_id is None else db.get(BrandPolicy, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
     data = file.file.read(settings.max_upload_bytes + 1)
