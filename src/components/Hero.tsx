@@ -11,7 +11,7 @@ const presets = [
 ];
 
 export default function Hero({ activePresetId, onSelectPreset, onScanQuery }: HeroProps) {
-  const [query, setQuery] = useState('Our new release is guaranteed 10x faster than legacy enterprise tools.');
+  const [query, setQuery] = useState('');
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
