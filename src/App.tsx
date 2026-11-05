@@ -15,8 +15,10 @@ import ExportReportModal from './components/modals/ExportReportModal';
 import SignInModal from './components/modals/SignInModal';
 
 import { PRESETS } from './data/presets';
-import { demoLogin, getAccessToken, getCurrentUser, logout } from './lib/api';
-import type { ApiAuditResponse, Role } from './types';
+import { demoLogin, getAccessToken, getCurrentUser, loadBootwearDemo, logout } from './lib/api';
+import type { ApiAuditResponse, GuidelineDocumentResponse, Role } from './types';
+
+const BOOTWEAR_SAMPLE_DRAFT = 'Bootwear Everyday is the #1 walking shoe in the world and is 100% waterproof. Explore Bootwear kicks.';
 
 export default function App() {
   const [activePresetId, setActivePresetId] = useState('launch-copy');
@@ -25,29 +27,36 @@ export default function App() {
   const [isApprovalsModalOpen, setIsApprovalsModalOpen] = useState(false);
   const [isGovernanceModalOpen, setIsGovernanceModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isSignInModalOpen, setIsSignInModalOpen] = useState(() => !getAccessToken());
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState<Role>('creator');
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
   const [auditQuery, setAuditQuery] = useState('');
+  const [sampleAudit, setSampleAudit] = useState<{ guideline: GuidelineDocumentResponse; run: number } | null>(null);
+  const [isPreparingSample, setIsPreparingSample] = useState(false);
+  const [sampleError, setSampleError] = useState<string | null>(null);
   const [latestAudit, setLatestAudit] = useState<ApiAuditResponse | null>(null);
   const [exportAuditId, setExportAuditId] = useState<string | undefined>();
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    const token = getAccessToken();
+    if (!token) return;
     getCurrentUser()
-      .then((user) => setCurrentRole(user.role))
+      .then((user) => {
+        if (getAccessToken() === token) setCurrentRole(user.role);
+      })
       .catch(() => {
+        if (getAccessToken() !== token) return;
         logout();
         setIsAuthenticated(false);
-        setIsSignInModalOpen(true);
       });
-  }, [isAuthenticated]);
+  }, []);
 
-  const handleSignIn = async (role: Role) => {
-    const response = await demoLogin(role);
+  const handleSignIn = async (role: Role, signal?: AbortSignal) => {
+    const response = await demoLogin(role, signal);
     setLatestAudit(null);
     setExportAuditId(undefined);
-    setIsAuditModalOpen(false);
+    if (isAuthenticated) setIsAuditModalOpen(false);
+    setSampleAudit(null);
     setIsApprovalsModalOpen(false);
     setIsGovernanceModalOpen(false);
     setIsVaultModalOpen(false);
@@ -68,9 +77,40 @@ export default function App() {
     }
   };
 
-  const handleScanQuery = (query: string) => {
-    setAuditQuery(query);
+  const openAudit = () => {
+    if (isPreparingSample) return;
     setIsAuditModalOpen(true);
+    if (!isAuthenticated) setIsSignInModalOpen(true);
+  };
+
+  const handleScanQuery = (query: string) => {
+    if (isPreparingSample) return;
+    setSampleAudit(null);
+    setAuditQuery(query);
+    openAudit();
+  };
+
+  const handleTrySample = async () => {
+    if (isPreparingSample) return;
+    setIsPreparingSample(true);
+    setSampleError(null);
+    try {
+      const signal = AbortSignal.timeout(45000);
+      if (!getAccessToken()) await handleSignIn('creator', signal);
+      const guideline = await loadBootwearDemo(signal);
+      setSampleAudit((previous) => ({ guideline, run: (previous?.run ?? 0) + 1 }));
+      setLatestAudit(null);
+      setExportAuditId(undefined);
+      setIsVaultModalOpen(false);
+      setIsApprovalsModalOpen(false);
+      setIsGovernanceModalOpen(false);
+      setIsExportModalOpen(false);
+      setIsAuditModalOpen(true);
+    } catch {
+      setSampleError('Could not load the sample audit. Please try again.');
+    } finally {
+      setIsPreparingSample(false);
+    }
   };
 
   const handleExportAudit = (id?: string) => {
@@ -94,11 +134,11 @@ export default function App() {
       <div className="relative z-10 flex flex-col min-h-screen">
         {/* Navigation */}
         <Navbar
-          onOpenAudit={() => setIsAuditModalOpen(true)}
+          onOpenAudit={openAudit}
           onOpenVault={() => setIsVaultModalOpen(true)}
           onOpenApprovals={() => setIsApprovalsModalOpen(true)}
           onOpenAnalytics={() => setIsGovernanceModalOpen(true)}
-          onOpenSignIn={() => setIsSignInModalOpen(true)}
+          onOpenSignIn={() => { if (!isPreparingSample) setIsSignInModalOpen(true); }}
           currentRole={currentRole}
           isAuthenticated={isAuthenticated}
         />
@@ -109,6 +149,9 @@ export default function App() {
             activePresetId={activePresetId}
             onSelectPreset={handleSelectPreset}
             onScanQuery={handleScanQuery}
+            onTrySample={() => void handleTrySample()}
+            isPreparingSample={isPreparingSample}
+            sampleError={sampleError}
           />
 
           {/* Core Feature: Live Interactive Audit Terminal / Studio */}
@@ -125,7 +168,7 @@ export default function App() {
             onOpenVault={() => setIsVaultModalOpen(true)}
             onOpenApprovals={() => setIsApprovalsModalOpen(true)}
             onOpenAnalytics={() => setIsGovernanceModalOpen(true)}
-            onOpenAudit={() => setIsAuditModalOpen(true)}
+            onOpenAudit={openAudit}
             currentRole={currentRole}
           />
 
@@ -146,18 +189,19 @@ export default function App() {
 
       {/* Interactive Modals */}
       <AuditModal
-        key={currentRole}
+        key={`${currentRole}:${sampleAudit?.run ?? 0}`}
         currentRole={currentRole}
         onContextChange={() => { setLatestAudit(null); setExportAuditId(undefined); }}
-        isOpen={isAuditModalOpen}
+        isOpen={isAuditModalOpen && isAuthenticated}
         onClose={() => setIsAuditModalOpen(false)}
-        initialText={auditQuery || undefined}
+        initialText={sampleAudit ? BOOTWEAR_SAMPLE_DRAFT : auditQuery || undefined}
+        initialGuideline={sampleAudit?.guideline}
         onAuditComplete={setLatestAudit}
         onExportAudit={handleExportAudit}
       />
 
       <BrandVaultModal
-        onOpenAudit={() => { setIsVaultModalOpen(false); setIsAuditModalOpen(true); }}
+        onOpenAudit={() => { setIsVaultModalOpen(false); openAudit(); }}
         isOpen={isVaultModalOpen}
         onClose={() => setIsVaultModalOpen(false)}
       />
@@ -179,12 +223,15 @@ export default function App() {
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         auditId={exportAuditId}
-        onStartAudit={() => { setIsExportModalOpen(false); setIsAuditModalOpen(true); }}
+        onStartAudit={() => { setIsExportModalOpen(false); openAudit(); }}
       />
 
       <SignInModal
         isOpen={isSignInModalOpen}
-        onClose={() => setIsSignInModalOpen(false)}
+        onClose={() => {
+          if (!isAuthenticated) setIsAuditModalOpen(false);
+          setIsSignInModalOpen(false);
+        }}
         activeRole={isAuthenticated ? currentRole : undefined}
         onSignIn={handleSignIn}
       />

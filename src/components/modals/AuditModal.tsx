@@ -24,11 +24,12 @@ interface AuditModalProps extends ModalProps {
   currentRole: Role;
   onContextChange: () => void;
   initialText?: string;
+  initialGuideline?: GuidelineDocumentResponse;
   onAuditComplete: (audit: ApiAuditResponse) => void;
   onExportAudit: (id: string) => void;
 }
 
-export default function AuditModal({ isOpen, onClose, currentRole, onContextChange, initialText, onAuditComplete, onExportAudit }: AuditModalProps) {
+export default function AuditModal({ isOpen, onClose, currentRole, onContextChange, initialText, initialGuideline, onAuditComplete, onExportAudit }: AuditModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
     initialText || 'Our product is guaranteed to deliver the best results. Contact our team to learn more.'
@@ -40,7 +41,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
   const [lastSavedAuditId, setLastSavedAuditId] = useState<string | null>(null);
   const [dataHandling, setDataHandling] = useState<string | null>(null);
   const [analysisEngine, setAnalysisEngine] = useState<string | null>(null);
-  const [guideline, setGuideline] = useState<GuidelineDocumentResponse | null>(null);
+  const [guideline, setGuideline] = useState<GuidelineDocumentResponse | null>(initialGuideline ?? null);
   const [isPreparingGuidelines, setIsPreparingGuidelines] = useState(false);
   const [retrievedSources, setRetrievedSources] = useState<RetrievedSource[]>([]);
   const [retrievalMethod, setRetrievalMethod] = useState<string | null>(null);
@@ -344,7 +345,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 className="px-5 py-2.5 bg-violet-400 hover:bg-violet-300 text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(167,139,250,0.3)] transition-all flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>{isAuditing ? 'Analyzing Content...' : currentAuditId ? 'Save Revision & Re-audit' : 'Audit content'}</span>
+                <span>{isAuditing ? 'Analyzing Content...' : currentAuditId ? 'Save Revision & Re-audit' : 'Run Audit'}</span>
               </button>
             </div>
 

@@ -38,10 +38,11 @@ export function logout(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
-export async function demoLogin(role: Role): Promise<LoginResponse> {
+export async function demoLogin(role: Role, signal?: AbortSignal): Promise<LoginResponse> {
   const response = await request<LoginResponse>('/api/auth/demo', {
     method: 'POST',
     body: JSON.stringify({ role }),
+    signal,
   });
   window.localStorage.setItem(TOKEN_KEY, response.access_token);
   return response;
@@ -115,8 +116,8 @@ export function uploadAudit(file: File, policyId?: string): Promise<ApiAuditResp
   return request<ApiAuditResponse>('/api/audits/upload', { method: 'POST', body: form, headers: {} });
 }
 
-export function loadBootwearDemo(): Promise<GuidelineDocumentResponse> {
-  return request('/api/demo/bootwear', { method: 'POST' });
+export function loadBootwearDemo(signal?: AbortSignal): Promise<GuidelineDocumentResponse> {
+  return request('/api/demo/bootwear', { method: 'POST', signal });
 }
 
 export function importGuidelinePdf(brandName: string, file: File): Promise<GuidelineDocumentResponse> {

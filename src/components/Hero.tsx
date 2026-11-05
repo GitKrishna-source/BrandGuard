@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { ArrowRight, ArrowUpRight, Check, FileText, Fingerprint, ScanLine, ShieldCheck, Sparkles, WandSparkles } from 'lucide-react';
 import type { FormEvent } from 'react';
 
-interface HeroProps { activePresetId: string; onSelectPreset: (id: string) => void; onScanQuery: (query: string) => void }
+interface HeroProps {
+  activePresetId: string;
+  onSelectPreset: (id: string) => void;
+  onScanQuery: (query: string) => void;
+  onTrySample: () => void;
+  isPreparingSample: boolean;
+  sampleError: string | null;
+}
 const presets = [
   { id: 'press-release', label: 'Press release', sampleQuery: 'Our flagship deployment generated $4.2M in instantaneous net savings.' },
   { id: 'launch-copy', label: 'Product launch', sampleQuery: 'Our new release is guaranteed 10x faster than legacy enterprise tools.' },
@@ -10,7 +17,7 @@ const presets = [
   { id: 'source-fact', label: 'Fact check', sampleQuery: 'BrandGuard holds certified ISO-99999 Quantum Cryptography endorsement.' },
 ];
 
-export default function Hero({ activePresetId, onSelectPreset, onScanQuery }: HeroProps) {
+export default function Hero({ activePresetId, onSelectPreset, onScanQuery, onTrySample, isPreparingSample, sampleError }: HeroProps) {
   const [query, setQuery] = useState('');
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -31,6 +38,15 @@ export default function Hero({ activePresetId, onSelectPreset, onScanQuery }: He
           <p className="mb-7 max-w-lg text-[15px] leading-7 text-[#a69bb7] sm:text-base">
             Create boldly. Publish confidently. Give every draft a second pair of eyes for brand voice, facts, and the details that matter.
           </p>
+          <div className="mb-5">
+            <button type="button" onClick={onTrySample} disabled={isPreparingSample} className="purple-button px-4 py-2.5 text-xs font-semibold disabled:cursor-wait disabled:opacity-60">
+              <ScanLine className="h-4 w-4" />Try a Sample Audit<ArrowRight className="h-3.5 w-3.5" />
+            </button>
+            <p role="status" className="mt-2 text-xs text-[#a69bb7]">
+              {isPreparingSample ? 'Preparing the Bootwear demo…' : 'See how BrandGuard checks a sample draft against brand guidelines.'}
+            </p>
+            {sampleError && <p role="alert" className="mt-2 text-xs text-rose-300">{sampleError}</p>}
+          </div>
           <form onSubmit={handleSubmit} className="scan-composer glass-panel mb-4 text-left">
             <label htmlFor="hero-draft" className="mb-2 flex items-center gap-2 text-[11px] font-medium text-[#d1c2e7]"><FileText className="h-3.5 w-3.5 text-violet-300" />Your next great draft starts here</label>
             <textarea id="hero-draft" value={query} onChange={(event) => setQuery(event.target.value)} rows={2} placeholder="Paste a claim, headline, or a few lines of your draft..." className="mb-3 w-full resize-none bg-transparent text-sm leading-6 text-[#c6bdd5] placeholder:text-[#796b8f] focus:outline-none" />
