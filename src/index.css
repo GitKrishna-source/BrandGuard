@@ -70,11 +70,11 @@ button[aria-busy='true'] { cursor:progress; }
 .studio-section { padding-top:104px; padding-bottom:var(--space-2xl); }
 .studio-frame { overflow:clip; border-radius:var(--radius-card); background:var(--color-paper-2); box-shadow:var(--glass-hi); }
 .studio-toolbar { min-height:68px; background:var(--color-paper-3); }
-.studio-document { background:var(--color-well); color:var(--color-well-ink); padding:32px; }
+.studio-document { --color-open-soft:oklch(82% 0.075 62); background:var(--color-well); color:var(--color-well-ink); padding:32px; }
 .studio-document [class*='text-ink'],.studio-document [class*='text-secondary'] { color:var(--color-well-ink); }
 .studio-document [class*='text-muted'] { color:var(--color-well-muted); }
 .studio-document [class*='text-accent'] { color:var(--color-accent-deep); }
-.studio-document [class*='text-open'] { color:var(--color-well-muted); }
+.studio-document .text-open { color:oklch(34% 0.075 62); }
 .studio-document [class*='border-line'] { border-color:var(--color-well-rule); }
 .studio-document [class*='bg-surface'] { background:var(--color-well-2); }
 .studio-review { padding:32px; }
