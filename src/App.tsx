@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import LiveAuditStudio from './components/LiveAuditStudio';
+import BrandguardStandard from './components/BrandguardStandard';
 import FourPillars from './components/FourPillars';
-import TechStackBar from './components/TechStackBar';
+import ReviewJourney from './components/ReviewJourney';
 import TrustedBy from './components/TrustedBy';
 import Footer from './components/Footer';
 
@@ -155,7 +156,9 @@ export default function App() {
             currentRole={currentRole}
           />
 
-          {/* Four Pillars of Immutable Brand Confidence */}
+          {/* Redesigned Lower Half: BrandGuard Standard */}
+          <BrandguardStandard />
+
           <FourPillars
             onOpenVault={() => setIsVaultModalOpen(true)}
             onOpenApprovals={() => setIsApprovalsModalOpen(true)}
@@ -165,7 +168,7 @@ export default function App() {
           />
 
           {/* Production Architecture & Latency Benchmark Bar */}
-          <TechStackBar />
+          <ReviewJourney />
 
           {/* Trusted by Logos */}
           <TrustedBy />
