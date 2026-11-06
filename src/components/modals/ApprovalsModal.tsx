@@ -48,24 +48,24 @@ export default function ApprovalsModal({ isOpen, onClose, auditId, reviewerRole,
   }
   const canApprove = reviewerRole === 'legal' || (reviewerRole === 'manager' && !selected?.findings.some((finding) => finding.severity === 'high'));
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4">
-      <section role="dialog" aria-modal="true" aria-label="Audit reviews" className="w-full max-w-3xl max-h-[90vh] overflow-auto rounded-xl border border-slate-800 bg-[#130f20] p-6 space-y-4">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-surface-deep/80 p-4">
+      <section role="dialog" aria-modal="true" aria-label="Audit reviews" className="w-full max-w-3xl max-h-[90vh] overflow-auto rounded-xl border border-line bg-surface p-6 space-y-4">
         <button className="float-right" onClick={onClose}>Close</button>
         <h2 className="text-lg font-bold">Audit reviews</h2>
         {error && <p role="alert">{error}</p>}
         {selected ? <>
-          <label>Audit <select className="bg-slate-900 p-2" value={selectedId} disabled={busy} onChange={(event) => setSelectedId(event.target.value)}>
-            {audits.map((row) => <option key={row.id} value={row.id}>{row.content_type} · {row.score}/100 · {row.id.slice(0, 8)}</option>)}
+          <label>Audit <select className="bg-surface p-2" value={selectedId} disabled={busy} onChange={(event) => setSelectedId(event.target.value)}>
+            {audits.map((row) => <option key={row.id} value={row.id}>{row.content_type} / {row.score}/100 / {row.id.slice(0, 8)}</option>)}
           </select></label>
-          <p>Status · {selected.status.replace(/_/g, ' ')}</p>
-          <button disabled={busy} className="text-sm text-violet-300" onClick={() => onExportAudit(selected.id)}>Export this audit</button>
-          {selected.parent_audit_id && <button className="text-violet-300" disabled={busy} onClick={() => setSelectedId(selected.parent_audit_id!)}>View previous revision</button>}
-          {selected.content_preview && <pre className="whitespace-pre-wrap rounded bg-slate-900 p-3">{selected.content_preview}</pre>}
+          <p>Status / {selected.status.replace(/_/g, ' ')}</p>
+          <button disabled={busy} className="text-sm text-accent" onClick={() => onExportAudit(selected.id)}>Export this audit</button>
+          {selected.parent_audit_id && <button className="text-accent" disabled={busy} onClick={() => setSelectedId(selected.parent_audit_id!)}>View previous revision</button>}
+          {selected.content_preview && <pre className="whitespace-pre-wrap rounded bg-surface p-3">{selected.content_preview}</pre>}
           <ul>{selected.findings.map((finding, index) => <li key={index}>{finding.message} ({finding.source})</li>)}</ul>
           <h3 className="font-semibold">Review history</h3>
-          <ul>{reviews.map((review) => <li key={review.id}>{review.reviewer_role} · {review.status.replace(/_/g, ' ')}{review.comment && ` · ${review.comment}`}</li>)}</ul>
-          <textarea aria-label="Review comment" placeholder="Add feedback" className="w-full rounded bg-slate-900 p-3" value={comment} onChange={(event) => setComment(event.target.value)} />
-          <div className="flex flex-wrap gap-4 text-violet-300">
+          <ul>{reviews.map((review) => <li key={review.id}>{review.reviewer_role} / {review.status.replace(/_/g, ' ')}{review.comment && ` / ${review.comment}`}</li>)}</ul>
+          <textarea aria-label="Review comment" placeholder="Add feedback" className="w-full rounded bg-surface p-3" value={comment} onChange={(event) => setComment(event.target.value)} />
+          <div className="flex flex-wrap gap-4 text-accent">
             <button disabled={busy || !comment.trim()} onClick={() => void save('pending')}>Add comment</button>
             {reviewerRole === 'creator' && <button disabled={busy} onClick={() => void save('pending')}>Request review</button>}
             {reviewerRole !== 'creator' && <button disabled={busy} onClick={() => void save('changes_requested')}>Request changes</button>}

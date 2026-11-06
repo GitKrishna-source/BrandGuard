@@ -121,16 +121,8 @@ export default function App() {
   };
 
   return (
-    <div className="brand-shell min-h-screen text-slate-100 flex flex-col relative selection:bg-violet-500/30 selection:text-violet-200">
-      {/* Background ambient lighting and grid pattern */}
-      <div className="ambient-scene" aria-hidden="true">
-        <div className="ambient-orb ambient-orb-one" />
-        <div className="ambient-orb ambient-orb-two" />
-        <div className="ambient-orb ambient-orb-three" />
-        <div className="ambient-grid" />
-      </div>
+    <div className="brand-shell min-h-screen flex flex-col relative">
 
-      {/* Main Content Layers */}
       <div className="relative z-10 flex flex-col min-h-screen">
         {/* Navigation */}
         <Navbar

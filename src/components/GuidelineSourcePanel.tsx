@@ -50,37 +50,37 @@ export default function GuidelineSourcePanel({ document, onChange, role, disable
   }
 
   return (
-    <section aria-label="PDF brand guidelines" className="mx-5 my-4 space-y-3 rounded-xl border border-emerald-500/25 bg-emerald-950/15 p-4">
+    <section aria-label="PDF brand guidelines" className="mx-5 my-4 space-y-3 rounded-xl border border-accent/25 bg-accent-soft/15 p-4">
       <div className="flex items-start gap-3">
-        <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
+        <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-white">{document ? `Auditing for ${document.brand_name}` : 'Try Bootwear, our shoe brand demo'}</h3>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400">{document
-            ? `${document.filename} · ${document.page_count} pages · ${document.chunk_count} searchable passages. Findings cite the PDF evidence used.`
+          <h3 className="text-sm font-semibold text-ink">{document ? `Auditing for ${document.brand_name}` : 'Try Bootwear, our shoe brand demo'}</h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted">{document
+            ? `${document.filename} / ${document.page_count} pages / ${document.chunk_count} searchable passages. Findings cite the PDF evidence used.`
             : 'Load the Bootwear guideline PDF, then audit copy against its voice, terminology, product facts, and claims policy.'}</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button disabled={blocked} onClick={() => void load(loadBootwearDemo)} className="rounded-lg bg-emerald-300 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-50">{busy ? 'Working…' : 'Use Bootwear PDF'}</button>
-        <button disabled={blocked} onClick={() => void download()} className="flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs text-emerald-200 disabled:opacity-50"><Download className="h-3.5 w-3.5" />Download guideline PDF</button>
-        {document && <button disabled={blocked} onClick={() => onChange(null)} className="rounded-lg px-3 py-2 text-xs text-slate-300 disabled:opacity-50">Return to general audit</button>}
+        <button disabled={blocked} onClick={() => void load(loadBootwearDemo)} className="rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-dark disabled:opacity-50">{busy ? 'Working…' : 'Use Bootwear PDF'}</button>
+        <button disabled={blocked} onClick={() => void download()} className="flex items-center gap-2 rounded-lg border border-accent/30 px-3 py-2 text-xs text-accent disabled:opacity-50"><Download className="h-3.5 w-3.5" />Download guideline PDF</button>
+        {document && <button disabled={blocked} onClick={() => onChange(null)} className="rounded-lg px-3 py-2 text-xs text-secondary disabled:opacity-50">Return to general audit</button>}
       </div>
       {role !== 'creator' ? (
-        <details className="text-xs text-slate-300">
+        <details className="text-xs text-secondary">
           <summary className="cursor-pointer">Import an approved guideline PDF</summary>
           <div className="mt-3 space-y-3">
-            <label className="block">Brand name<input disabled={blocked} maxLength={160} value={brandName} onChange={(event) => setBrandName(event.target.value)} className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-white" /></label>
+            <label className="block">Brand name<input disabled={blocked} maxLength={160} value={brandName} onChange={(event) => setBrandName(event.target.value)} className="mt-1 block w-full rounded-lg border border-line bg-surface-deep p-2 text-ink" /></label>
             <label className="block">Approved source PDF<input disabled={blocked || !brandName.trim()} type="file" accept=".pdf,application/pdf" className="mt-2 block w-full" onChange={(event) => {
               const file = event.target.files?.[0];
               event.target.value = '';
               if (file) void load(() => importGuidelinePdf(brandName.trim(), file));
             }} /></label>
-            <p className="text-slate-400">Import only a source you approve. Text-based PDFs up to 10 MB and 100 pages. Every import creates a separate, immutable source version.</p>
+            <p className="text-muted">Import only a source you approve. Text-based PDFs up to 10 MB and 100 pages. Every import creates a separate, immutable source version.</p>
           </div>
         </details>
-      ) : <p className="text-[11px] text-slate-400">Creators can use the demo. Manager and Legal roles can import approved guideline PDFs.</p>}
-      <p className="text-[11px] leading-relaxed text-slate-500">Bootwear data is fictional. Source PDFs and audit results are retained. Relevant passages and your draft may be sent to the configured AI provider. Human review remains required.</p>
-      {error && <p role="alert" className="text-xs text-rose-300">{error}</p>}
+      ) : <p className="text-[11px] text-muted">Creators can use the demo. Manager and Legal roles can import approved guideline PDFs.</p>}
+      <p className="text-[11px] leading-relaxed text-muted">Bootwear data is fictional. Source PDFs and audit results are retained. Relevant passages and your draft may be sent to the configured AI provider. Human review remains required.</p>
+      {error && <p role="alert" className="text-xs text-open">{error}</p>}
     </section>
   );
 }

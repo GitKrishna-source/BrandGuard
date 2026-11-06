@@ -1,0 +1,41 @@
+[
+  {
+    "mode": "redesign",
+    "depth": "full",
+    "scope": "site",
+    "shape": "Workbench",
+    "theme": "dusk",
+    "axes": "dark/grotesk-sans/cool",
+    "hero": "Counter",
+    "nav": "slab",
+    "footer": "statement",
+    "imagery": "landscape and working composer",
+    "photos": [
+      "luca-bravo-oY8IrtfeYgQ"
+    ],
+    "entry": "src/index.css",
+    "signature": "working draft composer over fog",
+    "sections": [
+      "hero",
+      "interactive studio",
+      "workflow rows",
+      "approach",
+      "roles",
+      "footer"
+    ],
+    "waived": [
+      "39b",
+      "44c"
+    ],
+    "prompt": "redesign the UI using Dusk",
+    "verification": {
+      "floorFailures": 0,
+      "handlerExpressionsPreserved": "82/82",
+      "review": "in-thread",
+      "typecheck": "pass",
+      "build": "pass",
+      "lint": "pass",
+      "interactionChecks": "pass"
+    }
+  }
+]

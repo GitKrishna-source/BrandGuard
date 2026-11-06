@@ -231,28 +231,28 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#130f20] border border-slate-800 shadow-2xl text-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-deep/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-surface border border-line shadow-2xl text-ink">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-[#191226]">
+        <div className="flex items-center justify-between p-5 border-b border-line bg-surface">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-violet-950/60 border border-violet-500/40 flex items-center justify-center text-violet-400">
+            <div className="w-9 h-9 rounded-lg bg-accent-soft/60 border border-accent/40 flex items-center justify-center text-accent">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
                 BrandGuard Live Multi-Content Audit Studio
               </h2>
-              <p className="text-xs font-mono text-slate-400">
-                {guideline ? 'PDF-grounded brand review · Retrieved evidence cited in findings' : 'General content review · Clarity, tone, grammar, and claims needing evidence'}
+              <p className="text-xs font-sans text-muted">
+                {guideline ? 'PDF-grounded brand review / Retrieved evidence cited in findings' : 'General content review / Clarity, tone, grammar, and claims needing evidence'}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-elevated transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -261,13 +261,13 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
         <GuidelineSourcePanel document={guideline} onChange={changeGuideline} role={currentRole} disabled={isAuditing} onLoadingChange={setIsPreparingGuidelines} />
 
         {/* Modal Tabs */}
-        <div className="flex border-b border-slate-800 bg-[#0e0a18] px-5 pt-3 gap-2">
+        <div className="flex border-b border-line bg-surface px-5 pt-3 gap-2">
           <button
             onClick={() => setActiveTab('text')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
               activeTab === 'text'
-                ? 'border-violet-400 text-violet-300 font-semibold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-accent text-accent font-semibold'
+                : 'border-transparent text-muted hover:text-ink'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -276,10 +276,10 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
 
           <button
             onClick={() => setActiveTab('image')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
               activeTab === 'image'
-                ? 'border-violet-400 text-violet-300 font-semibold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-accent text-accent font-semibold'
+                : 'border-transparent text-muted hover:text-ink'
             }`}
           >
             <ImageIcon className="w-3.5 h-3.5" />
@@ -288,10 +288,10 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
 
           <button
             onClick={() => setActiveTab('document')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
               activeTab === 'document'
-                ? 'border-violet-400 text-violet-300 font-semibold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-accent text-accent font-semibold'
+                : 'border-transparent text-muted hover:text-ink'
             }`}
           >
             <Upload className="w-3.5 h-3.5" />
@@ -304,20 +304,20 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           <div className="p-6 space-y-5">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label htmlFor="audit-draft" className="text-xs font-mono text-slate-300 uppercase tracking-wider">
+                <label htmlFor="audit-draft" className="text-xs font-sans text-secondary  ">
                   Draft Content Input:
                 </label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCustomText(guideline?.shared_demo ? 'Bootwear Everyday is an everyday walking shoe. Bootwear Everyday costs INR 2,499. Bootwear accepts unworn shoes within 14 days of delivery.' : 'Contact our team to learn more about our services.')}
-                    className="text-[11px] font-mono text-violet-400 hover:underline"
+                    className="text-[11px] font-sans text-accent hover:underline"
                   >
                     {guideline?.shared_demo ? 'Load source-consistent sample' : 'Load Neutral Sample'}
                   </button>
-                  <span className="text-slate-600">•</span>
+                  <span className="text-muted">•</span>
                   <button
                     onClick={() => setCustomText(guideline?.shared_demo ? 'Bootwear Everyday is the #1 performance racing shoe. These kicks are 100% waterproof and cure foot pain. Buy them for INR 1,999 with returns on worn shoes for 30 days.' : 'Our software is the cheapest solution guaranteed 100% bug-free! Talk with our customer support rep.')}
-                    className="text-[11px] font-mono text-rose-400 hover:underline"
+                    className="text-[11px] font-sans text-open hover:underline"
                   >
                     {guideline?.shared_demo ? 'Load Bootwear test draft' : 'Load High-Risk Sample'}
                   </button>
@@ -329,20 +329,20 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
                 rows={5}
-                className="w-full bg-[#09060f] border border-slate-800 rounded-xl p-3 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-violet-400 leading-relaxed"
+                className="w-full bg-surface border border-line rounded-xl p-3 text-xs sm:text-sm font-sans text-ink focus:outline-none focus:border-accent leading-relaxed"
                 placeholder="Paste marketing copy, press release, technical blog, or social copy here..."
               />
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-[11px] font-mono text-slate-500">
+              <span className="text-[11px] font-sans text-muted">
                 {guideline ? 'Checks content against retrieved PDF passages and general content standards' : 'Checks clarity, tone, grammar, and unsupported claims'}
               </span>
 
               <button
                 onClick={runTextAudit}
                 disabled={isAuditing || isPreparingGuidelines || !customText.trim()}
-                className="px-5 py-2.5 bg-violet-400 hover:bg-violet-300 text-slate-950 font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(167,139,250,0.3)] transition-all flex items-center gap-2"
+                className="px-5 py-2.5 bg-accent hover:bg-accent text-dark font-bold text-xs rounded-xl  transition-colors flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>{isAuditing ? 'Analyzing Content...' : currentAuditId ? 'Save Revision & Re-audit' : 'Run Audit'}</span>
@@ -350,30 +350,30 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
             </div>
 
             {apiError && (
-              <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300">
+              <div className="mt-3 rounded-lg border border-open/40 bg-open-soft/30 p-3 text-xs text-open">
                 {apiError}
               </div>
             )}
 
             {dataHandling && (
-              <div className="mt-3 rounded-lg border border-violet-500/20 bg-violet-950/20 p-3 text-[11px] font-mono text-slate-400">
+              <div className="mt-3 rounded-lg border border-accent/20 bg-accent-soft/20 p-3 text-[11px] font-sans text-muted">
                 Analysis engine: {analysisEngine || 'BrandGuard policy engine'}. {dataHandling}
               </div>
             )}
 
             {/* Results */}
             {auditResult && (
-              <div className="mt-5 p-5 rounded-xl bg-[#0e0a18] border border-slate-800 space-y-4">
-                <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-800 gap-3">
+              <div className="mt-5 p-5 rounded-xl bg-surface border border-line space-y-4">
+                <div className="flex flex-wrap items-center justify-between pb-3 border-b border-line gap-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-400">Readiness Score:</span>
-                    <span className={`text-base font-bold font-mono ${
-                      auditResult.score >= 90 ? 'text-emerald-400' : auditResult.score >= 70 ? 'text-amber-400' : 'text-rose-400'
+                    <span className="text-xs font-sans text-muted">Readiness Score:</span>
+                    <span className={`text-base font-bold font-sans ${
+                      auditResult.score >= 90 ? 'text-accent' : auditResult.score >= 70 ? 'text-open' : 'text-open'
                     }`}>
                       {auditResult.score} / 100
                     </span>
-                    <span className="text-xs font-mono text-slate-400 border-l border-slate-800 pl-3">
-                      Workflow: <strong className="text-violet-300">{auditResult.tone}</strong>
+                    <span className="text-xs font-sans text-muted border-l border-line pl-3">
+                      Workflow: <strong className="text-accent">{auditResult.tone}</strong>
                     </span>
                   </div>
 
@@ -381,17 +381,17 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                     {previousText && (
                       <button
                         onClick={handleUndoFix}
-                        className="px-2.5 py-1 text-[11px] font-mono text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-all"
+                        className="px-2.5 py-1 text-[11px] font-sans text-secondary hover:text-ink bg-elevated hover:bg-elevated rounded-lg border border-line flex items-center gap-1.5 transition-colors"
                         title="Revert draft to state before auto-fix"
                       >
-                        <RotateCcw className="w-3 h-3 text-amber-400" />
+                        <RotateCcw className="w-3 h-3 text-open" />
                         <span>Undo Fix</span>
                       </button>
                     )}
                     <button
                       onClick={handleAutoFix}
                       disabled={isRemediating || !customText.trim()}
-                      className="px-3 py-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-400 hover:to-fuchsia-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-violet-500/25 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                      className="px-3 py-1.5 bg-accent   hover: hover: text-ink font-semibold text-xs rounded-lg shadow-lg shadow-violet-500/25 flex items-center gap-1.5 transition-colors disabled:opacity-50"
                       title="Automatically fix all violations according to brand guidelines"
                     >
                       <Wand2 className={`w-3.5 h-3.5 ${isRemediating ? 'animate-spin' : ''}`} />
@@ -401,15 +401,15 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 </div>
 
                 {remediationSummary && (
-                  <div className="p-3.5 rounded-xl bg-violet-950/40 border border-violet-500/40 text-xs flex items-start gap-3">
-                    <Sparkles className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
+                  <div className="p-3.5 rounded-xl bg-accent-soft/40 border border-accent/40 text-xs flex items-start gap-3">
+                    <Sparkles className="w-4 h-4 text-accent mt-0.5 shrink-0" />
                     <div className="flex-1">
-                      <div className="font-semibold text-violet-200 mb-1 flex items-center justify-between">
+                      <div className="font-semibold text-accent mb-1 flex items-center justify-between">
                         <span>Applied AI Brand Corrections</span>
-                        <span className="text-[10px] font-mono text-violet-400 font-normal">Re-audit recommended</span>
+                        <span className="text-[10px] font-sans text-accent font-normal">Re-audit recommended</span>
                       </div>
-                      <p className="text-slate-300 text-[11px] font-mono leading-relaxed">{remediationSummary}</p>
-                      <div className="mt-2 text-[10px] text-violet-300/80 font-mono">
+                      <p className="text-secondary text-[11px] font-sans leading-relaxed">{remediationSummary}</p>
+                      <div className="mt-2 text-[10px] text-accent/80 font-sans">
                         Tip: Click <strong>"Save Revision & Re-audit"</strong> above to see the new verified score!
                       </div>
                     </div>
@@ -422,30 +422,30 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                       key={i}
                       className={`p-3.5 rounded-lg border text-xs ${
                         f.severity === 'Critical'
-                          ? 'bg-rose-950/30 border-rose-500/40'
+                          ? 'bg-open-soft/30 border-open/40'
                           : f.severity === 'Medium'
-                          ? 'bg-amber-950/30 border-amber-500/40'
+                          ? 'bg-open-soft/30 border-open/40'
                           : f.severity === 'Low'
-                          ? 'bg-sky-950/30 border-sky-500/40'
-                          : 'bg-emerald-950/30 border-emerald-500/40'
+                          ? 'bg-accent-soft/30 border-accent/40'
+                          : 'bg-accent-soft/30 border-accent/40'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5 font-mono">
-                        <span className="font-bold text-[11px] uppercase tracking-wide">
+                      <div className="flex items-center justify-between mb-1.5 font-sans">
+                        <span className="font-bold text-[11px]  ">
                           [{f.severity}] {f.type}
                         </span>
-                        <span className="text-slate-400 text-[10px]">Flagged: "{f.quote}"</span>
+                        <span className="text-muted text-[10px]">Flagged: "{f.quote}"</span>
                       </div>
-                      <p className="text-slate-300 mb-2 leading-relaxed">{f.explanation}</p>
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono bg-slate-900/80 p-2 rounded border border-slate-800">
-                        <div className="flex items-center gap-1.5 text-emerald-400">
-                          <span className="text-slate-500 uppercase text-[9px]">AI Suggestion:</span>
+                      <p className="text-secondary mb-2 leading-relaxed">{f.explanation}</p>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-sans bg-surface/80 p-2 rounded border border-line">
+                        <div className="flex items-center gap-1.5 text-accent">
+                          <span className="text-muted  text-[9px]">AI Suggestion:</span>
                           <span>{f.suggestedFix}</span>
                         </div>
                         {f.quote && f.suggestedFix && customText.toLowerCase().includes(f.quote.toLowerCase()) && (
                           <button
                             onClick={() => handleApplySingleFix(f.quote, f.suggestedFix)}
-                            className="px-2.5 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-[10px] shrink-0 font-medium transition-colors"
+                            className="px-2.5 py-0.5 bg-accent/20 hover:bg-accent/30 text-accent border border-accent/40 rounded text-[10px] shrink-0 font-medium transition-colors"
                             title={`Replace "${f.quote}" with fix`}
                           >
                             Apply Fix
@@ -463,7 +463,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
         {/* Tab 2: Image Audit */}
         {activeTab === 'image' && (
           <div className="p-6 space-y-5">
-            <div className="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-2xl p-8 text-center transition-all bg-[#0e0a18]">
+            <div className="border-2 border-dashed border-line hover:border-accent/50 rounded-2xl p-8 text-center transition-colors bg-surface">
               <input
                 type="file"
                 accept="image/*"
@@ -473,49 +473,49 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 onChange={handleImageUpload}
               />
               <label htmlFor="img-upload-input" className="cursor-pointer block">
-                <div className="w-12 h-12 rounded-xl bg-violet-950/50 border border-violet-500/30 text-violet-400 flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 rounded-xl bg-accent-soft/50 border border-accent/30 text-accent flex items-center justify-center mx-auto mb-3">
                   <ImageIcon className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-semibold text-white mb-1">
+                <h4 className="text-sm font-semibold text-ink mb-1">
                   Upload Creative Asset, Banner, or Ad Image
                 </h4>
-                <p className="text-xs text-slate-400 font-mono mb-4">
+                <p className="text-xs text-muted font-sans mb-4">
                   PNG, JPG or WebP up to 10 MB
                 </p>
-                <span className="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 rounded-lg border border-slate-700">
+                <span className="inline-block px-4 py-2 bg-elevated hover:bg-elevated text-xs font-medium text-ink rounded-lg border border-line">
                   Select Image File
                 </span>
               </label>
             </div>
 
             {imagePreview && (
-              <div className="p-5 rounded-xl bg-[#0e0a18] border border-slate-800 space-y-4">
+              <div className="p-5 rounded-xl bg-surface border border-line space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
-                  <div className="rounded-lg overflow-hidden border border-slate-700 max-h-60 flex items-center justify-center bg-black">
+                  <div className="rounded-lg overflow-hidden border border-line max-h-60 flex items-center justify-center bg-surface-deep">
                     <img src={imagePreview} alt="Asset preview" className="max-h-60 object-contain" />
                   </div>
 
                   {imageAuditResult ? (
-                    <div className="space-y-3 font-mono text-xs">
-                      <div className="flex justify-between pb-2 border-b border-slate-800">
-                        <span className="text-slate-400">Visual Brand Score:</span>
-                        <span className="text-emerald-400 font-bold">{imageAuditResult.score} / 100</span>
+                    <div className="space-y-3 font-sans text-xs">
+                      <div className="flex justify-between pb-2 border-b border-line">
+                        <span className="text-muted">Visual Brand Score:</span>
+                        <span className="text-accent font-bold">{imageAuditResult.score} / 100</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[10px]">VISUAL REVIEW:</span>
-                        <span className="text-violet-300">{imageAuditResult.primaryPaletteMatch}</span>
+                        <span className="text-muted block text-[10px]">VISUAL REVIEW:</span>
+                        <span className="text-accent">{imageAuditResult.primaryPaletteMatch}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[10px]">RECOMMENDATION:</span>
-                        <span className="text-emerald-300">{imageAuditResult.logoPlacement}</span>
+                        <span className="text-muted block text-[10px]">RECOMMENDATION:</span>
+                        <span className="text-accent">{imageAuditResult.logoPlacement}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[10px]">WCAG CONTRAST:</span>
-                        <span className="text-emerald-300">{imageAuditResult.accessibilityContrast}</span>
+                        <span className="text-muted block text-[10px]">WCAG CONTRAST:</span>
+                        <span className="text-accent">{imageAuditResult.accessibilityContrast}</span>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-xs font-mono text-violet-400 animate-pulse">
+                    <div className="text-xs font-sans text-accent animate-pulse">
                       {apiError || 'Waiting for visual review results…'}
                     </div>
                   )}
@@ -528,7 +528,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
         {/* Tab 3: Document Audit */}
         {activeTab === 'document' && (
           <div className="p-6 space-y-5">
-            <div className="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-2xl p-8 text-center transition-all bg-[#0e0a18]">
+            <div className="border-2 border-dashed border-line hover:border-accent/50 rounded-2xl p-8 text-center transition-colors bg-surface">
               <input
                 type="file"
                 accept=".pdf,.docx,.txt,.md"
@@ -538,30 +538,30 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 onChange={handleDocUpload}
               />
               <label htmlFor="doc-upload-input" className="cursor-pointer block">
-                <div className="w-12 h-12 rounded-xl bg-violet-950/50 border border-violet-500/30 text-violet-400 flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 rounded-xl bg-accent-soft/50 border border-accent/30 text-accent flex items-center justify-center mx-auto mb-3">
                   <Upload className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-semibold text-white mb-1">
+                <h4 className="text-sm font-semibold text-ink mb-1">
                   Upload a document for content review
                 </h4>
-                <p className="text-xs text-slate-400 font-mono mb-4">
+                <p className="text-xs text-muted font-sans mb-4">
                   Accepts PDF, Microsoft Word (.docx), Markdown (.md), or Plaintext
                 </p>
-                <span className="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 rounded-lg border border-slate-700">
+                <span className="inline-block px-4 py-2 bg-elevated hover:bg-elevated text-xs font-medium text-ink rounded-lg border border-line">
                   Select Document File
                 </span>
               </label>
             </div>
 
             {docName && (
-              <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center gap-2 text-emerald-300">
+              <div className="p-4 rounded-xl bg-accent-soft/30 border border-accent/30 flex items-center justify-between text-xs font-sans">
+                <div className="flex items-center gap-2 text-accent">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Parsed <strong>{docName}</strong> successfully. Ready for scan.</span>
                 </div>
                 <button
                   onClick={() => setActiveTab('text')}
-                  className="px-3 py-1 bg-emerald-500 text-slate-950 font-bold rounded"
+                  className="px-3 py-1 bg-accent text-dark font-bold rounded"
                 >
                   View Extracted Text
                 </button>
@@ -570,22 +570,22 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           </div>
         )}
 
-        {retrievalMethod && <details className="mx-6 mb-5 rounded-xl border border-emerald-500/20 bg-slate-950/50 p-4 text-xs">
-          <summary className="cursor-pointer font-semibold text-emerald-200">PDF evidence used in this audit ({retrievedSources.length} passages)</summary>
-          <p className="mt-3 text-slate-400">{retrievalMethod}. These saved passages support review; source consistency is not independent fact verification.</p>
-          {retrievedSources.length === 0 && <p className="mt-3 text-amber-200">No relevant passage was retrieved. Missing facts require clarification.</p>}
-          {retrievedSources.map((source) => <div key={source.citation_id} className="mt-3 rounded-lg border border-slate-800 p-3">
-            <p className="font-semibold text-emerald-200">[{source.citation_id}] {source.filename} · Page {source.page} · {source.chunk_id}</p>
-            <p className="mt-2 whitespace-pre-wrap leading-relaxed text-slate-300">{source.text}</p>
+        {retrievalMethod && <details className="mx-6 mb-5 rounded-xl border border-accent/20 bg-surface-deep/50 p-4 text-xs">
+          <summary className="cursor-pointer font-semibold text-accent">PDF evidence used in this audit ({retrievedSources.length} passages)</summary>
+          <p className="mt-3 text-muted">{retrievalMethod}. These saved passages support review; source consistency is not independent fact verification.</p>
+          {retrievedSources.length === 0 && <p className="mt-3 text-open">No relevant passage was retrieved. Missing facts require clarification.</p>}
+          {retrievedSources.map((source) => <div key={source.citation_id} className="mt-3 rounded-lg border border-line p-3">
+            <p className="font-semibold text-accent">[{source.citation_id}] {source.filename} / Page {source.page} / {source.chunk_id}</p>
+            <p className="mt-2 whitespace-pre-wrap leading-relaxed text-secondary">{source.text}</p>
           </div>)}
         </details>}
 
         {/* Modal Footer */}
-        <div className="p-4 bg-[#191226] border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-500">
-          {lastSavedAuditId ? <button disabled={isAuditing} className="text-violet-300 disabled:opacity-50" onClick={() => onExportAudit(lastSavedAuditId)}>Export saved audit</button> : <span>Run an audit to save a report.</span>}
+        <div className="p-4 bg-surface border-t border-line flex justify-between items-center text-xs font-sans text-muted">
+          {lastSavedAuditId ? <button disabled={isAuditing} className="text-accent disabled:opacity-50" onClick={() => onExportAudit(lastSavedAuditId)}>Export saved audit</button> : <span>Run an audit to save a report.</span>}
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
+            className="px-4 py-1.5 rounded-lg bg-elevated hover:bg-elevated text-ink font-medium transition-colors"
           >
             Close Studio
           </button>

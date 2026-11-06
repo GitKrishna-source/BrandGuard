@@ -1,0 +1,7 @@
+{
+  "auditOpensRoleSelection": true,
+  "presetsPopulateDraft": true,
+  "bothSampleFixesWork": true,
+  "mobileOverflow": false,
+  "pageErrors": []
+}
