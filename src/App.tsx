@@ -28,7 +28,7 @@ export default function App() {
   const [isApprovalsModalOpen, setIsApprovalsModalOpen] = useState(false);
   const [isGovernanceModalOpen, setIsGovernanceModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(true);
   const [currentRole, setCurrentRole] = useState<Role>('creator');
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
   const [auditQuery, setAuditQuery] = useState('');
