@@ -1,0 +1,25 @@
+name: Frontend quality and edit selection
+
+on:
+  push:
+    paths: ['src/**', 'tests/**', 'package*.json', '*config*', '.github/workflows/frontend-quality.yml']
+  pull_request:
+    paths: ['src/**', 'tests/**', 'package*.json', '*config*', '.github/workflows/frontend-quality.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:remediation
+      - run: npm run lint
+      - run: npm run build

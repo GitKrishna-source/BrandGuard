@@ -114,6 +114,31 @@ across 40 labelled cases. Known local limitations remain visible; the regression
 gate prevents increases over the reviewed baseline. See [the evaluation guide](evals/README.md)
 for metric definitions, per-case reports, and optional configured-provider evaluation.
 
+## Auto-Fix review
+
+After auditing a text draft or an uploaded document's extracted text, choose
+**Review Auto-Fix edits**. The studio shows the original and proposed text, each
+change's explanation and any explicit policy source, and a preview containing
+only accepted edits. Accept or reject edits individually, then choose **Use
+accepted edits** to change the draft. Rejected and undecided edits retain the
+original wording. **Undo Fix** restores the draft from before applying that batch.
+The saved audit and its score stay unchanged until **Save Revision & Re-audit**;
+the studio labels the previous results when the current text has changed.
+
+`POST /api/audits/remediate` returns proposals without creating an audit, revision,
+or approval. Its response includes `edits` with immutable-original UTF-16 offsets,
+exact `original`/`replacement` strings, explanations, optional policy sources,
+and the actual analysis engine/data handling. Edits are computed from the returned
+texts, not model-supplied locations. The frontend verifies that applying all edits
+reconstructs the proposal and rejects stale or inconsistent responses.
+
+Local remediation only proposes explicit terminology, tone, and messaging
+replacements from the selected policy. It does not invent tests, benefits, or
+replacement claims; unresolved claims need evidence or manual revision. AI
+explanations are suggestions, not independent verification. No-change proposals
+leave the draft untouched. Run the edit-selection checks with
+`npm run test:remediation` on Node.js 22.6+.
+
 ## Audit reports
 
 `GET /api/audits/{id}/report` returns JSON and `GET /api/audits/{id}/report.pdf` downloads a

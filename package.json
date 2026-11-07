@@ -10,6 +10,7 @@
     "dev:backend": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"cd backend; .\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --port 8000\"",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:remediation": "node --experimental-strip-types --test tests/remediation.test.ts",
     "build": "vite build",
     "preview": "vite preview"
   },

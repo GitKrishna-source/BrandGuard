@@ -12,6 +12,7 @@ from .config import get_settings
 from .db import Base, engine, get_db
 from .models import Audit, BrandPolicy, GuidelineDocument, Review, Revision
 from .policies import BASIC_POLICY_ID, get_basic_policy
+from .remediation import build_remediation_edits
 from .reports import AuditReport, build_report, capture_policy, render_report_pdf
 from .retrieval import (
     BOOTWEAR_PDF,
@@ -256,12 +257,15 @@ def remediate_audit_content(
     if not policy:
         raise HTTPException(status_code=404, detail="Brand policy not found")
     sources = audit_sources(db, policy.id, user, payload.content)
-    fixed_content, changes_summary, engine = remediate_text_with_provider(payload.content, policy, sources)
+    fixed_content, changes_summary, engine, explanations = remediate_text_with_provider(
+        payload.content, policy, sources)
     return RemediateResponse(
         original=payload.content,
         fixed_content=fixed_content,
         changes_summary=changes_summary,
         analysis_engine=engine,
+        edits=build_remediation_edits(payload.content, fixed_content, policy, sources, explanations),
+        data_handling=source_data_handling(engine, sources),
     )
 
 

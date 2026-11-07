@@ -17,7 +17,7 @@ When marketing teams, copywriters, or generative AI create content (product anno
 - **AI Hallucinations:** Fabricated certifications, fake ISO endorsements, or incorrect pricing/warranty terms.
 - **Tone & Style Drift:** Inconsistent voice, non-compliant brand colors, or broken image accessibility.
 
-**BrandGuard AI** acts as an autonomous brand safety officer. It ingests company brand guidelines, audits drafts in real-time using **Local PDF RAG + Groq/Gemini LLM reasoning**, pinpoints violations with **exact page-level citations**, and provides **1-Click AI Auto-Fix (Remediation)** to rewrite statements into 100% compliant copy while preserving the creator's voice.
+**BrandGuard AI** ingests company brand guidelines, audits drafts using **Local PDF RAG + Groq/Gemini LLM reasoning**, and reports findings with **page-level citations**. **Auto-Fix review** proposes changes with a before-and-after comparison and individual accept/reject controls. Revised copy needs re-auditing and human approval; an automated score is not a compliance guarantee.
 
 ---
 
@@ -29,8 +29,8 @@ graph TD
     B --> C[BM25 Local PDF RAG: Page-Level Chunk Retrieval]
     C --> D[AI Audit Engine: Groq Qwen / Google Gemini]
     D --> E[Violation Findings with Exact Page Citations]
-    E --> F["✨ 1-Click AI Auto-Fix (Remediation)"]
-    F --> G[Compliance Score 100% + Confetti]
+    E --> F[Review Auto-Fix proposals and accept individual edits]
+    F --> G[Save revision and re-audit]
     G --> H[Multi-Stage Role Approval: Creator -> Manager -> Legal]
     H --> I[Export Audited Report as PDF / JSON]
 ```
@@ -42,9 +42,9 @@ graph TD
 3. **Deep LLM Audit:**
    - The draft and retrieved evidence are evaluated by **Groq (`qwen/qwen3.8-27b`)** or **Google Gemini**.
    - Findings report exact evidence, severity, explanation, and source citations (e.g., `[S2] bootwear-brand-guidelines.pdf, p. 4, p4-c13`).
-4. **1-Click AI Auto-Fix (Remediation):**
-   - Click **"✨ AI Auto-Fix Statement"** — the AI automatically rewrites the draft, replacing banned words and unverified claims with audited guidelines facts.
-   - Includes full **"Undo Fix"** support and per-finding **"Apply Fix"** buttons.
+4. **Auto-Fix review (Remediation):**
+   - Click **"Review Auto-Fix edits"** to compare the original and proposed draft, inspect each change's explanation, and accept or reject it individually.
+   - **"Use accepted edits"** changes only the selected wording. **"Undo Fix"** restores the previous draft; save a revision and re-audit to assess it.
 5. **Human Governance & Approval Pipeline:**
    - Role-based permissions (**Creator**, **Manager**, **Legal**).
    - Real-time review comments, approval sign-offs, and compliance history.
@@ -87,7 +87,7 @@ npm run dev
 | **Parsers** | `pypdf` (PDF), `python-docx` (Word), `Pillow` (Image & Palette), `reportlab` (PDF generation) |
 | **Security & Auth** | JWT Bearer tokens, Argon2 password hashing, Role-Based Access Control (RBAC) |
 | **Database** | SQLite (local development) / PostgreSQL (production Docker Compose ready) |
-| **Testing & Quality** | Pytest (65 unit tests, 100% pass), ESLint, Ruff linter |
+| **Testing & Quality** | Pytest, 40-case audit reliability benchmark, edit-selection tests, ESLint, Ruff, GitHub Actions |
 
 ---
 
@@ -97,8 +97,8 @@ npm run dev
 2. Click **"Sign In"** in the top navigation bar and pick **Creator** or **Manager** demo role.
 3. Click **"Run Custom Audit"** -> Click **"Load Bootwear test draft"**.
 4. Click **"Audit content"** to see live Groq LLM violations with page citations.
-5. Click **"✨ AI Auto-Fix Statement"** to watch the AI rewrite the draft into verified compliant copy!
-6. Click **"Save Revision & Re-audit"** to see the 100% green readiness score.
+5. Click **"Review Auto-Fix edits"**, inspect the comparison and explanations, then accept or reject individual changes and choose **"Use accepted edits"**.
+6. Click **"Save Revision & Re-audit"** to assess the revised draft. Remaining findings still need attention and human review.
    
 
 

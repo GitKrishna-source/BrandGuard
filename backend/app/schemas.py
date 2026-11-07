@@ -163,8 +163,26 @@ class RemediateRequest(BaseModel):
     policy_id: str | None = None
 
 
+class RemediationExplanation(BaseModel):
+    before: str = Field(max_length=30000)
+    after: str = Field(max_length=30000)
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class RemediationEdit(BaseModel):
+    id: str
+    start: int = Field(ge=0, description="UTF-16 start offset in the original draft")
+    end: int = Field(ge=0, description="Exclusive UTF-16 end offset in the original draft")
+    original: str
+    replacement: str
+    explanation: str
+    source: str | None = None
+
+
 class RemediateResponse(BaseModel):
     original: str
     fixed_content: str
     changes_summary: str
     analysis_engine: str
+    edits: list[RemediationEdit] = Field(default_factory=list)
+    data_handling: str = ""

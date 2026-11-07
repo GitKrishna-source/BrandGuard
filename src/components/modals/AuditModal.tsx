@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   X, 
   Upload, 
@@ -14,10 +14,11 @@ import {
   Wand2,
   RotateCcw
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import type { ChangeEvent } from 'react';
-import type { ApiAuditResponse, GuidelineDocumentResponse, ImageAuditResponse, ModalProps, RetrievedSource, Role, TextAuditResponse } from '../../types';
+import type { ApiAuditResponse, GuidelineDocumentResponse, ImageAuditResponse, ModalProps, RemediateResponse, RetrievedSource, Role, TextAuditResponse } from '../../types';
 import GuidelineSourcePanel from '../GuidelineSourcePanel';
+import RemediationReview from '../RemediationReview';
+import { validateRemediationProposal } from '../../lib/remediation';
 import { createRevision, createTextAudit, getAuditReport, remediateContent, uploadAudit } from '../../lib/api';
 
 interface AuditModalProps extends ModalProps {
@@ -48,6 +49,37 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
   const [isRemediating, setIsRemediating] = useState(false);
   const [previousText, setPreviousText] = useState<string | null>(null);
   const [remediationSummary, setRemediationSummary] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<RemediateResponse | null>(null);
+  const [auditedText, setAuditedText] = useState<string | null>(null);
+  const requestVersion = useRef(0);
+  const openRef = useRef(isOpen);
+  openRef.current = isOpen;
+  const busy = isAuditing || isRemediating || isPreparingGuidelines;
+  const draftNeedsAudit = auditResult !== null && auditedText !== customText;
+
+  const discardProposal = () => {
+    requestVersion.current += 1;
+    setProposal(null);
+    setIsRemediating(false);
+    setIsAuditing(false);
+  };
+
+  const changeText = (text: string) => {
+    discardProposal();
+    setCustomText(text);
+    setPreviousText(null);
+    setRemediationSummary(null);
+  };
+
+  const closeStudio = () => {
+    discardProposal();
+    onClose();
+  };
+
+  const changeTab = (tab: string) => {
+    discardProposal();
+    setActiveTab(tab);
+  };
 
   // Image tab states
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -69,12 +101,30 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
       setAnalysisEngine(null);
       setPreviousText(null);
       setRemediationSummary(null);
+      setProposal(null);
+      setAuditedText(null);
+      requestVersion.current += 1;
+      setIsRemediating(false);
+      setIsAuditing(false);
     }
   }, [initialText]);
+
+  useEffect(() => {
+    openRef.current = isOpen;
+    requestVersion.current += 1;
+    setProposal(null);
+    setIsRemediating(false);
+    setIsAuditing(false);
+    return () => {
+      openRef.current = false;
+      requestVersion.current += 1;
+    };
+  }, [isOpen, currentRole]);
 
   if (!isOpen) return null;
 
   const changeGuideline = (document: GuidelineDocumentResponse | null) => {
+    discardProposal();
     setGuideline(document);
     setCurrentAuditId(null);
     setLastSavedAuditId(null);
@@ -87,10 +137,11 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
     setApiError(null);
     setPreviousText(null);
     setRemediationSummary(null);
+    setAuditedText(null);
     onContextChange();
   };
 
-  const applyApiAudit = (response: ApiAuditResponse) => {
+  const applyApiAudit = (response: ApiAuditResponse, content = customText) => {
     const findings = response.findings.length > 0
       ? response.findings.map((finding) => ({
           type: finding.category,
@@ -117,69 +168,80 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
     setAnalysisEngine(response.analysis_engine || null);
     setRetrievedSources(response.retrieved_sources || []);
     setRetrievalMethod(response.retrieval_method || null);
+    setAuditedText(content);
+    setProposal(null);
+    setRemediationSummary(null);
   };
 
   const runTextAudit = async () => {
+    if (busy || !customText.trim()) return;
+    discardProposal();
+    const version = requestVersion.current;
     setIsAuditing(true);
     setApiError(null);
     try {
       const response = currentAuditId
         ? await createRevision(currentAuditId, customText)
         : await createTextAudit(customText, guideline?.policy_id);
+      if (version !== requestVersion.current || !openRef.current) return;
       applyApiAudit(response);
     } catch (error) {
+      if (version !== requestVersion.current || !openRef.current) return;
       setApiError(error instanceof Error ? error.message : 'Unable to complete the audit.');
     } finally {
-      setIsAuditing(false);
+      if (version === requestVersion.current) setIsAuditing(false);
     }
   };
 
   const handleAutoFix = async () => {
-    if (!customText.trim() || isRemediating) return;
+    if (!customText.trim() || busy) return;
+    const version = ++requestVersion.current;
+    const original = customText;
+    setProposal(null);
     setIsRemediating(true);
     setApiError(null);
     try {
-      const response = await remediateContent(customText, guideline?.policy_id);
-      setPreviousText(customText);
-      setCustomText(response.fixed_content);
-      setRemediationSummary(response.changes_summary);
-      confetti({
-        particleCount: 70,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ['#a78bfa', '#f472b6', '#34d399', '#ffffff'],
-      });
+      const response = await remediateContent(original, guideline?.policy_id);
+      if (version !== requestVersion.current || !openRef.current) return;
+      validateRemediationProposal(response, original);
+      setProposal(response);
     } catch (error) {
+      if (version !== requestVersion.current || !openRef.current) return;
       setApiError(error instanceof Error ? error.message : 'Unable to auto-fix the draft.');
     } finally {
-      setIsRemediating(false);
+      if (version === requestVersion.current) setIsRemediating(false);
     }
   };
 
   const handleUndoFix = () => {
     if (previousText !== null) {
+      discardProposal();
       setCustomText(previousText);
       setPreviousText(null);
       setRemediationSummary(null);
     }
   };
 
-  const handleApplySingleFix = (quote: string, suggestedFix: string) => {
-    if (!quote || !customText) return;
-    setPreviousText(customText);
-    const lowerText = customText.toLowerCase();
-    const lowerQuote = quote.toLowerCase();
-    const index = lowerText.indexOf(lowerQuote);
-    if (index !== -1) {
-      const updated = customText.slice(0, index) + suggestedFix + customText.slice(index + quote.length);
-      setCustomText(updated);
-      setRemediationSummary(`Applied fix: "${quote}" replaced with "${suggestedFix}".`);
+  const handleUseEdits = (content: string, acceptedCount: number) => {
+    if (!proposal || busy) return;
+    try {
+      validateRemediationProposal(proposal, customText);
+      setPreviousText(customText);
+      setCustomText(content);
+      setRemediationSummary(`Applied ${acceptedCount} accepted ${acceptedCount === 1 ? 'edit' : 'edits'} to your draft. Save a revision and re-audit to assess the updated copy.`);
+      discardProposal();
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Generate a new edit review.');
+      discardProposal();
     }
   };
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (busy) return;
+      discardProposal();
+      const version = requestVersion.current;
       setImageFile(file);
       const url = URL.createObjectURL(file);
       setImagePreview(url);
@@ -188,6 +250,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
       setApiError(null);
       uploadAudit(file, guideline?.policy_id)
         .then((response) => {
+          if (version !== requestVersion.current || !openRef.current) return;
           setImageAuditResult({
             score: response.score,
             primaryPaletteMatch: response.findings[0]?.message || 'No issues detected by this visual check',
@@ -207,26 +270,37 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           setRetrievedSources(response.retrieved_sources || []);
           setRetrievalMethod(response.retrieval_method || null);
         })
-        .catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to audit image.'))
-        .finally(() => setIsAuditing(false));
+        .catch((error: unknown) => {
+          if (version === requestVersion.current && openRef.current) setApiError(error instanceof Error ? error.message : 'Unable to audit image.');
+        })
+        .finally(() => { if (version === requestVersion.current) setIsAuditing(false); });
     }
   };
 
   const handleDocUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (busy) return;
+      discardProposal();
+      const version = requestVersion.current;
+      setPreviousText(null);
+      setRemediationSummary(null);
       setDocName(file.name);
       setIsAuditing(true);
       setApiError(null);
       uploadAudit(file, guideline?.policy_id)
         .then(async (response) => {
+          if (version !== requestVersion.current || !openRef.current) return;
           const savedReport = await getAuditReport(response.id);
+          if (version !== requestVersion.current || !openRef.current) return;
           setCustomText(savedReport.content);
-          applyApiAudit(response);
+          applyApiAudit(response, savedReport.content);
           setActiveTab('text');
         })
-        .catch((error: unknown) => setApiError(error instanceof Error ? error.message : 'Unable to audit document.'))
-        .finally(() => setIsAuditing(false));
+        .catch((error: unknown) => {
+          if (version === requestVersion.current && openRef.current) setApiError(error instanceof Error ? error.message : 'Unable to audit document.');
+        })
+        .finally(() => { if (version === requestVersion.current) setIsAuditing(false); });
     }
   };
 
@@ -251,19 +325,21 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           </div>
 
           <button
-            onClick={onClose}
+            onClick={closeStudio}
+            aria-label="Close audit studio"
             className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-elevated transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <GuidelineSourcePanel document={guideline} onChange={changeGuideline} role={currentRole} disabled={isAuditing} onLoadingChange={setIsPreparingGuidelines} />
+        <GuidelineSourcePanel document={guideline} onChange={changeGuideline} role={currentRole} disabled={busy} onLoadingChange={setIsPreparingGuidelines} />
 
         {/* Modal Tabs */}
-        <div className="flex border-b border-line bg-surface px-5 pt-3 gap-2">
+        <div className="flex flex-wrap border-b border-line bg-surface px-5 pt-3 gap-2">
           <button
-            onClick={() => setActiveTab('text')}
+            onClick={() => changeTab('text')}
+            disabled={busy}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
               activeTab === 'text'
                 ? 'border-accent text-accent font-semibold'
@@ -275,7 +351,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           </button>
 
           <button
-            onClick={() => setActiveTab('image')}
+            onClick={() => changeTab('image')}
+            disabled={busy}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
               activeTab === 'image'
                 ? 'border-accent text-accent font-semibold'
@@ -287,7 +364,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           </button>
 
           <button
-            onClick={() => setActiveTab('document')}
+            onClick={() => changeTab('document')}
+            disabled={busy}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
               activeTab === 'document'
                 ? 'border-accent text-accent font-semibold'
@@ -309,14 +387,16 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 </label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setCustomText(guideline?.shared_demo ? 'Bootwear Everyday is an everyday walking shoe. Bootwear Everyday costs INR 2,499. Bootwear accepts unworn shoes within 14 days of delivery.' : 'Contact our team to learn more about our services.')}
+                    onClick={() => changeText(guideline?.shared_demo ? 'Bootwear Everyday is an everyday walking shoe. Bootwear Everyday costs INR 2,499. Bootwear accepts unworn shoes within 14 days of delivery.' : 'Contact our team to learn more about our services.')}
+                    disabled={busy}
                     className="text-[11px] font-sans text-accent hover:underline"
                   >
                     {guideline?.shared_demo ? 'Load source-consistent sample' : 'Load Neutral Sample'}
                   </button>
                   <span className="text-muted">•</span>
                   <button
-                    onClick={() => setCustomText(guideline?.shared_demo ? 'Bootwear Everyday is the #1 performance racing shoe. These kicks are 100% waterproof and cure foot pain. Buy them for INR 1,999 with returns on worn shoes for 30 days.' : 'Our software is the cheapest solution guaranteed 100% bug-free! Talk with our customer support rep.')}
+                    onClick={() => changeText(guideline?.shared_demo ? 'Bootwear Everyday is the #1 performance racing shoe. These kicks are 100% waterproof and cure foot pain. Buy them for INR 1,999 with returns on worn shoes for 30 days.' : 'Our software is the cheapest solution guaranteed 100% bug-free! Talk with our customer support rep.')}
+                    disabled={busy}
                     className="text-[11px] font-sans text-open hover:underline"
                   >
                     {guideline?.shared_demo ? 'Load Bootwear test draft' : 'Load High-Risk Sample'}
@@ -327,7 +407,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
               <textarea
                 id="audit-draft"
                 value={customText}
-                onChange={(e) => setCustomText(e.target.value)}
+                onChange={(e) => changeText(e.target.value)}
+                disabled={busy}
                 rows={5}
                 className="w-full bg-surface border border-line rounded-xl p-3 text-xs sm:text-sm font-sans text-ink focus:outline-none focus:border-accent leading-relaxed"
                 placeholder="Paste marketing copy, press release, technical blog, or social copy here..."
@@ -341,7 +422,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
 
               <button
                 onClick={runTextAudit}
-                disabled={isAuditing || isPreparingGuidelines || !customText.trim()}
+                disabled={busy || !customText.trim() || proposal !== null}
                 className="px-5 py-2.5 bg-accent hover:bg-accent text-dark font-bold text-xs rounded-xl  transition-colors flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
@@ -350,10 +431,12 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
             </div>
 
             {apiError && (
-              <div className="mt-3 rounded-lg border border-open/40 bg-open-soft/30 p-3 text-xs text-open">
+              <div role="alert" className="mt-3 rounded-lg border border-open/40 bg-open-soft/30 p-3 text-xs text-open">
                 {apiError}
               </div>
             )}
+
+            {proposal && <RemediationReview proposal={proposal} disabled={busy} onUse={handleUseEdits} onDismiss={discardProposal} />}
 
             {dataHandling && (
               <div className="mt-3 rounded-lg border border-accent/20 bg-accent-soft/20 p-3 text-[11px] font-sans text-muted">
@@ -366,21 +449,22 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
               <div className="mt-5 p-5 rounded-xl bg-surface border border-line space-y-4">
                 <div className="flex flex-wrap items-center justify-between pb-3 border-b border-line gap-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-sans text-muted">Readiness Score:</span>
+                    <span className="text-xs font-sans text-muted">{draftNeedsAudit ? 'Last audited score:' : 'Readiness Score:'}</span>
                     <span className={`text-base font-bold font-sans ${
                       auditResult.score >= 90 ? 'text-accent' : auditResult.score >= 70 ? 'text-open' : 'text-open'
                     }`}>
                       {auditResult.score} / 100
                     </span>
                     <span className="text-xs font-sans text-muted border-l border-line pl-3">
-                      Workflow: <strong className="text-accent">{auditResult.tone}</strong>
+                      Workflow: <strong className="text-accent">{draftNeedsAudit ? 'Draft changed · re-audit needed' : auditResult.tone}</strong>
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {previousText && (
+                    {previousText !== null && (
                       <button
                         onClick={handleUndoFix}
+                        disabled={busy}
                         className="px-2.5 py-1 text-[11px] font-sans text-secondary hover:text-ink bg-elevated hover:bg-elevated rounded-lg border border-line flex items-center gap-1.5 transition-colors"
                         title="Revert draft to state before auto-fix"
                       >
@@ -390,27 +474,29 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                     )}
                     <button
                       onClick={handleAutoFix}
-                      disabled={isRemediating || !customText.trim()}
+                      disabled={busy || !customText.trim() || proposal !== null}
                       className="px-3 py-1.5 bg-accent   hover: hover: text-ink font-semibold text-xs rounded-lg shadow-lg shadow-violet-500/25 flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                      title="Automatically fix all violations according to brand guidelines"
+                      title="Generate proposed changes for individual review"
                     >
                       <Wand2 className={`w-3.5 h-3.5 ${isRemediating ? 'animate-spin' : ''}`} />
-                      <span>{isRemediating ? 'Fixing Statement...' : '✨ AI Auto-Fix Statement'}</span>
+                      <span>{isRemediating ? 'Preparing edit review...' : 'Review Auto-Fix edits'}</span>
                     </button>
                   </div>
                 </div>
+
+                {draftNeedsAudit && <p role="status" className="rounded-lg border border-open/30 bg-open-soft/20 p-3 text-xs leading-relaxed text-secondary">These findings and this score belong to the last saved audit. Your current draft has changed. Save a revision and re-audit before requesting approval.</p>}
 
                 {remediationSummary && (
                   <div className="p-3.5 rounded-xl bg-accent-soft/40 border border-accent/40 text-xs flex items-start gap-3">
                     <Sparkles className="w-4 h-4 text-accent mt-0.5 shrink-0" />
                     <div className="flex-1">
                       <div className="font-semibold text-accent mb-1 flex items-center justify-between">
-                        <span>Applied AI Brand Corrections</span>
-                        <span className="text-[10px] font-sans text-accent font-normal">Re-audit recommended</span>
+                        <span>Accepted edits applied</span>
+                        <span className="text-[10px] font-sans text-accent font-normal">Re-audit needed</span>
                       </div>
                       <p className="text-secondary text-[11px] font-sans leading-relaxed">{remediationSummary}</p>
                       <div className="mt-2 text-[10px] text-accent/80 font-sans">
-                        Tip: Click <strong>"Save Revision & Re-audit"</strong> above to see the new verified score!
+                        Click <strong>"Save Revision & Re-audit"</strong> above to assess the updated draft.
                       </div>
                     </div>
                   </div>
@@ -442,13 +528,14 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                           <span className="text-muted  text-[9px]">AI Suggestion:</span>
                           <span>{f.suggestedFix}</span>
                         </div>
-                        {f.quote && f.suggestedFix && customText.toLowerCase().includes(f.quote.toLowerCase()) && (
+                        {f.severity !== 'Clean' && (
                           <button
-                            onClick={() => handleApplySingleFix(f.quote, f.suggestedFix)}
+                            onClick={handleAutoFix}
+                            disabled={busy || proposal !== null || !customText.trim()}
                             className="px-2.5 py-0.5 bg-accent/20 hover:bg-accent/30 text-accent border border-accent/40 rounded text-[10px] shrink-0 font-medium transition-colors"
-                            title={`Replace "${f.quote}" with fix`}
+                            title="Generate proposed edits for review; advisory suggestions are not inserted into copy"
                           >
-                            Apply Fix
+                            Review proposed edits
                           </button>
                         )}
                       </div>
@@ -467,7 +554,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
               <input
                 type="file"
                 accept="image/*"
-                disabled={isAuditing || isPreparingGuidelines}
+                disabled={busy}
                 id="img-upload-input"
                 className="hidden"
                 onChange={handleImageUpload}
@@ -532,7 +619,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
               <input
                 type="file"
                 accept=".pdf,.docx,.txt,.md"
-                disabled={isAuditing || isPreparingGuidelines}
+                disabled={busy}
                 id="doc-upload-input"
                 className="hidden"
                 onChange={handleDocUpload}
@@ -560,7 +647,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                   <span>Parsed <strong>{docName}</strong> successfully. Ready for scan.</span>
                 </div>
                 <button
-                  onClick={() => setActiveTab('text')}
+                  onClick={() => changeTab('text')}
+                  disabled={busy}
                   className="px-3 py-1 bg-accent text-dark font-bold rounded"
                 >
                   View Extracted Text
@@ -582,9 +670,9 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
 
         {/* Modal Footer */}
         <div className="p-4 bg-surface border-t border-line flex justify-between items-center text-xs font-sans text-muted">
-          {lastSavedAuditId ? <button disabled={isAuditing} className="text-accent disabled:opacity-50" onClick={() => onExportAudit(lastSavedAuditId)}>Export saved audit</button> : <span>Run an audit to save a report.</span>}
+          {lastSavedAuditId ? <button disabled={busy} className="text-accent disabled:opacity-50" onClick={() => { discardProposal(); onExportAudit(lastSavedAuditId); }}>Export saved audit</button> : <span>Run an audit to save a report.</span>}
           <button
-            onClick={onClose}
+            onClick={closeStudio}
             className="px-4 py-1.5 rounded-lg bg-elevated hover:bg-elevated text-ink font-medium transition-colors"
           >
             Close Studio

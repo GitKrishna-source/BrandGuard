@@ -184,5 +184,17 @@ export interface RemediateResponse {
   fixed_content: string;
   changes_summary: string;
   analysis_engine: string;
+  edits: RemediationEdit[];
+  data_handling?: string;
+}
+
+export interface RemediationEdit {
+  id: string;
+  start: number;
+  end: number;
+  original: string;
+  replacement: string;
+  explanation: string;
+  source: string | null;
 }
 
