@@ -1,0 +1,287 @@
+{
+  "description": "Reviewed initial local baseline; known errors are retained, not relabelled as correct.",
+  "dataset_sha256": "3165417e19e2d3876d107edbf820105563181f0565540e4cd163be8f3354c572",
+  "source_sha256": "69b36f8811b4b1317da6e13c23c19dfe0aaed4334abb98a38bea0c163a9e46c9",
+  "initial_metrics": {
+    "cases": 40,
+    "expected_violations": 30,
+    "true_positives": 25,
+    "false_positives": 6,
+    "false_negatives": 5,
+    "precision": 0.8065,
+    "recall": 0.8333,
+    "false_alarm_rate": 0.4286,
+    "citation_accuracy": 1.0,
+    "citation_coverage": 0.7647,
+    "citation_id_validity": 1.0,
+    "incorrect_or_missing_citations": 4,
+    "invalid_citation_ids": 0,
+    "retrieval_misses": 0,
+    "retrieval_rule_recall": 1.0
+  },
+  "maximum_errors": {
+    "overall": {
+      "false_positives": 6,
+      "false_negatives": 5,
+      "incorrect_or_missing_citations": 4,
+      "invalid_citation_ids": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear": {
+      "false_positives": 2,
+      "false_negatives": 4,
+      "incorrect_or_missing_citations": 4,
+      "invalid_citation_ids": 0,
+      "retrieval_misses": 0
+    },
+    "general": {
+      "false_positives": 4,
+      "false_negatives": 1,
+      "incorrect_or_missing_citations": 0,
+      "invalid_citation_ids": 0,
+      "retrieval_misses": 0
+    }
+  },
+  "cases": {
+    "general-plain": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-third-party": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-terminology-neutral": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-grammatical-repeat": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-alt-present": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-best-wishes": {
+      "false_positives": 1,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-negated-guarantee": {
+      "false_positives": 1,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-negated-downtime": {
+      "false_positives": 1,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-quoted-example": {
+      "false_positives": 1,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-rank-number": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-rank-words": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-rank-hash": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-rank-abbreviation": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-speed": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-guarantee": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-repeat-case": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-repeat-whitespace": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-empty-alt": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-multiple": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "general-grammar-context": {
+      "false_positives": 0,
+      "false_negatives": 1,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-approved-facts": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-approved-materials": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-approved-price-paraphrase": {
+      "false_positives": 1,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-fair-mention": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-term-boundary": {
+      "false_positives": 1,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-term": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-term-uppercase": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-term-phrase": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-tone": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-positioning": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-price": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-ranking": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-superlative": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-waterproof": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-medical": {
+      "false_positives": 0,
+      "false_negatives": 1,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-returns": {
+      "false_positives": 0,
+      "false_negatives": 1,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-recycled": {
+      "false_positives": 0,
+      "false_negatives": 1,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-lifetime": {
+      "false_positives": 0,
+      "false_negatives": 1,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-multiple": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    },
+    "bootwear-instruction-in-draft": {
+      "false_positives": 0,
+      "false_negatives": 0,
+      "citation_errors": 0,
+      "retrieval_misses": 0
+    }
+  }
+}

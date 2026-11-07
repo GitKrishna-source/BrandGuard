@@ -1,0 +1,34 @@
+name: Backend quality and audit reliability
+
+on:
+  push:
+    paths: ['backend/**', '.github/workflows/backend-quality.yml']
+  pull_request:
+    paths: ['backend/**', '.github/workflows/backend-quality.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      AI_PROVIDER: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -e './backend[dev]'
+      - name: Evaluate audit reliability
+        working-directory: backend
+        run: python -m app.evaluation --check --output ../output/evals/audit-reliability.json
+      - name: Run backend tests
+        working-directory: backend
+        run: python -m pytest -q
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-reliability
+          path: output/evals/audit-reliability.json

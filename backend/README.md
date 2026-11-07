@@ -105,6 +105,15 @@ and data handling notice are saved with new audits.
 
 Local rule checks match phrases and do not provide contextual interpretation.
 
+## Audit reliability evaluation
+
+Run `python -m app.evaluation --check --output ../output/evals/audit-reliability.json`
+from `backend` using its virtual environment. The offline gold benchmark measures
+missed violations, false alarms, citation accuracy/coverage, and retrieval recall
+across 40 labelled cases. Known local limitations remain visible; the regression
+gate prevents increases over the reviewed baseline. See [the evaluation guide](evals/README.md)
+for metric definitions, per-case reports, and optional configured-provider evaluation.
+
 ## Audit reports
 
 `GET /api/audits/{id}/report` returns JSON and `GET /api/audits/{id}/report.pdf` downloads a

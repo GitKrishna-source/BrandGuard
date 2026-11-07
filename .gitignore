@@ -12,4 +12,5 @@ backend/*.db
 backend/*.egg-info
 tmp/pdfs/
 output/pdf/
+output/evals/
 /tmp/hallmark-tools/
