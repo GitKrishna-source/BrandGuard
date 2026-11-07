@@ -75,6 +75,13 @@ export default function SignInModal({ isOpen, onClose, activeRole, onSignIn }: S
           </button>
         </div>
 
+        {signingInRole !== null && (
+          <p role="status" className="flex shrink-0 items-center gap-2 border-b border-accent/20 bg-accent-soft/30 px-5 py-3 text-sm text-ink">
+            <LoaderCircle aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none text-accent" />
+            Starting server—first connection may take a minute.
+          </p>
+        )}
+
         <div className="space-y-3 overflow-y-auto p-5" aria-busy={signingInRole !== null}>
           {roles.map((role) => {
             const RoleIcon = role.icon;
