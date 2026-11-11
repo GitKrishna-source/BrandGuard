@@ -31,6 +31,32 @@ interface AuditModalProps extends ModalProps {
   onExportAudit: (id: string) => void;
 }
 
+function resolveFindingReference(sourceText: string | undefined, sources: RetrievedSource[]) {
+  if (!sourceText) return null;
+  const citationMatches = Array.from(sourceText.matchAll(/\b(S\d+)\b/g)).map((m) => m[1]);
+  const matchedSources = citationMatches
+    .map((id) => sources.find((item) => item.citation_id === id))
+    .filter((item): item is RetrievedSource => Boolean(item));
+  if (matchedSources.length > 0) {
+    return matchedSources.map((src) => ({
+      documentName: src.filename,
+      page: src.page,
+      extractionMethod: src.extraction_method ?? null,
+      ocrConfidence: src.ocr_confidence ?? null,
+    }));
+  }
+  const parsed = sourceText.match(/^(?:\[S\d+\]\s*)?(.+?),\s*p\.\s*(\d+)/);
+  if (parsed) {
+    return [{
+      documentName: parsed[1],
+      page: Number(parsed[2]),
+      extractionMethod: null,
+      ocrConfidence: null,
+    }];
+  }
+  return null;
+}
+
 export default function AuditModal({ isOpen, onClose, currentRole, onContextChange, initialText, initialGuideline, onAuditComplete, onExportAudit }: AuditModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
@@ -148,7 +174,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           type: finding.category,
           severity: finding.severity === 'high' ? 'Critical' : finding.severity === 'medium' ? 'Medium' : 'Low',
           quote: finding.evidence,
-          explanation: `${finding.message} Source: ${finding.source}`,
+          explanation: finding.message,
+          source: finding.source,
           suggestedFix: finding.suggestion,
           verification: finding.verification,
         }))
@@ -527,6 +554,32 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                         <span className="text-muted text-[10px]">Flagged: "{f.quote}"</span>
                       </div>
                       <p className="text-secondary mb-2 leading-relaxed">{f.explanation}</p>
+                      {(() => {
+                        const refs = resolveFindingReference(f.source, retrievedSources);
+                        if (refs && refs.length > 0) {
+                          return (
+                            <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-accent/25 bg-surface/80 px-2.5 py-1.5 text-[11px] font-sans">
+                              {refs.map((ref, refIndex) => (
+                                <span key={refIndex} className="flex flex-wrap items-center gap-1.5 text-ink">
+                                  <span className="text-muted">Source:</span>
+                                  <strong className="text-ink">{ref.documentName}</strong>
+                                  <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                                    Page {ref.page}
+                                  </span>
+                                  {ref.extractionMethod === 'ocr' && (
+                                    <span className="rounded border border-accent/30 px-1.5 py-0.5 text-[10px] text-accent">
+                                      OCR{ref.ocrConfidence !== null && ref.ocrConfidence !== undefined ? ` ${Math.round(ref.ocrConfidence * 100)}%` : ''}
+                                    </span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return f.source ? (
+                          <p className="mb-2 text-[11px] font-sans text-muted">Source: {f.source}</p>
+                        ) : null;
+                      })()}
                       <FindingEvidence verification={f.verification} />
                       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-sans bg-surface/80 p-2 rounded border border-line">
                         <div className="flex items-center gap-1.5 text-accent">
@@ -636,7 +689,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                   Upload a document for content review
                 </h4>
                 <p className="text-xs text-muted font-sans mb-4">
-                  Accepts PDF, Microsoft Word (.docx), Markdown (.md), or Plaintext
+                  Accepts PDF (text or scanned), Microsoft Word (.docx), Markdown (.md), or Plaintext
                 </p>
                 <span className="inline-block px-4 py-2 bg-elevated hover:bg-elevated text-xs font-medium text-ink rounded-lg border border-line">
                   Select Document File
@@ -663,11 +716,18 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
         )}
 
         {retrievalMethod && <details className="mx-6 mb-5 rounded-xl border border-accent/20 bg-surface-deep/50 p-4 text-xs">
-          <summary className="cursor-pointer font-semibold text-accent">PDF evidence used in this audit ({retrievedSources.length} passages)</summary>
+          <summary className="cursor-pointer font-semibold text-accent">Guideline evidence used in this audit ({retrievedSources.length} passages)</summary>
           <p className="mt-3 text-muted">{retrievalMethod}. See each finding for its citation assessment.</p>
           {retrievedSources.length === 0 && <p className="mt-3 text-open">No relevant passage was retrieved. Missing facts require clarification.</p>}
           {retrievedSources.map((source) => <div key={source.citation_id} className="mt-3 rounded-lg border border-line p-3">
-            <p className="font-semibold text-accent">[{source.citation_id}] {source.filename} / Page {source.page} / {source.chunk_id}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold text-accent">[{source.citation_id}] {source.filename} / Page {source.page} / {source.chunk_id}</p>
+              {source.extraction_method && (
+                <span className="rounded border border-accent/30 px-1.5 py-0.5 text-[10px] text-accent">
+                  {source.extraction_method === 'ocr' ? `OCR${source.ocr_confidence !== null && source.ocr_confidence !== undefined ? ` (${Math.round(source.ocr_confidence * 100)}%)` : ''}` : 'Native PDF'}
+                </span>
+              )}
+            </div>
             {!!source.match_types?.length && <p className="mt-1 text-muted">Matched by {source.match_types.join(' + ')} search</p>}
             <p className="mt-2 whitespace-pre-wrap leading-relaxed text-secondary">{source.text}</p>
           </div>)}

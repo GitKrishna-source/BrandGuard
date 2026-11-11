@@ -156,8 +156,10 @@ Verification data:
     return result
 
 
+
+
 CLAIM_CONCEPTS = ("waterproofing", "medical_benefit", "ranking", "lifetime", "recycled",
-                  "carbon_neutral")
+                  "carbon_neutral", "guarantee")
 EVIDENCE_REQUIREMENT = re.compile(
     r"\b(?:no supplied (?:\w+\s+){0,2}(?:tests?|evidence)|"
     r"no (?:recycled[- ]material|carbon[- ]neutral|lifetime)|"
@@ -172,6 +174,41 @@ SENTENCE_BREAK = re.compile(r"(?<!\b[Nn][Oo]\.)(?<=[.!?])\s+|\n+")
 REPLACEMENT_RULE = re.compile(r"^(TERM|TONE|MESSAGING):\s*(.+?)\s*=>\s*(.+)$")
 PRICE_RULE = re.compile(r"^FACT:\s*(.+?)\s+costs\s+INR\s*([\d,]+(?:\.\d+)?)\.?$", re.IGNORECASE)
 PRICE = re.compile(r"\bINR\s*([\d,]+(?:\.\d+)?)", re.IGNORECASE)
+_QUOTED_BAN_RULE = re.compile(
+    r"(?:do not use|never use|avoid using|avoid|prohibited(?:\s+terms?)?|banned(?:\s+terms?)?)"
+    r"\s*[:\-]?\s*[\"“']([^\"”']{2,40})[\"”']"
+    r"(?:\s*(?:;|,|—|-|->|=>|to|instead(?:\s+use)?|use|prefer)\s*[\"“']([^\"”']{2,60})[\"”'])?",
+    re.IGNORECASE,
+)
+_USE_INSTEAD_RULE = re.compile(
+    r"\buse\s+[\"“']([^\"”']{2,60})[\"”']\s+instead\s+of\s+[\"“']([^\"”']{2,40})[\"”']",
+    re.IGNORECASE,
+)
+_LABELLED_BAN_RULE = re.compile(
+    r"^(?:banned|prohibited)\s+(?:term|word|phrase)s?\s*:\s*(.+?)(?:\s*(?:=>|->|→)\s*(.+))?$",
+    re.IGNORECASE,
+)
+
+
+def _natural_restricted_terms(line: str) -> list[str]:
+    found: list[str] = []
+    labelled = _LABELLED_BAN_RULE.match(line.strip())
+    if labelled:
+        raw_bad, raw_good = labelled.groups()
+        parts = [raw_bad] if raw_good else re.split(r"[,;]", raw_bad)
+        for part in parts:
+            cleaned = part.strip().strip("\"'“”‘’.,;:")
+            if 2 <= len(cleaned) <= 40:
+                found.append(cleaned)
+    for bad, _ in _QUOTED_BAN_RULE.findall(line):
+        cleaned = bad.strip().strip("\"'“”‘’.,;:")
+        if 2 <= len(cleaned) <= 40:
+            found.append(cleaned)
+    for _, bad in _USE_INSTEAD_RULE.findall(line):
+        cleaned = bad.strip().strip("\"'“”‘’.,;:")
+        if 2 <= len(cleaned) <= 40:
+            found.append(cleaned)
+    return found
 
 
 def _with_local_source(finding: Finding, source: RetrievedSource, quote: str,
@@ -228,6 +265,12 @@ def verify_local_findings(
                                     message="This wording expresses the positioning or tone restricted by the guideline.",
                                     evidence=match.group(), suggestion=replacement, source="",
                                 ), source, line, "The draft uses equivalent wording for the restricted phrasing.")
+
+            for banned_term in _natural_restricted_terms(line):
+                for finding in findings:
+                    if (finding.category in {"terminology", "tone", "messaging"}
+                            and finding.evidence.casefold() == banned_term.casefold()):
+                        attach(finding, source, line, "The guideline passage explicitly restricts this wording.")
 
             price_rule = PRICE_RULE.fullmatch(line)
             if price_rule:

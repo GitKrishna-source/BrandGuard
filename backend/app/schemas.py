@@ -66,6 +66,60 @@ class RetrievedSource(BaseModel):
     document_sha256: str
     relevance: float
     match_types: list[Literal["keyword", "semantic"]] = Field(default_factory=list)
+    extraction_method: Literal["native_pdf", "ocr"] | None = None
+    ocr_confidence: float | None = None
+
+
+class ExtractedPage(BaseModel):
+    page: int = Field(..., ge=1)
+    text: str = ""
+    extraction_method: Literal["native_pdf", "ocr"]
+    ocr_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    low_confidence: bool = False
+    status: Literal["extracted", "low_confidence", "unreadable", "empty", "failed"] = "extracted"
+    error: str | None = None
+    has_images: bool = False
+    char_count: int = 0
+    retryable: bool = False
+
+
+class DuplicateDocumentInfo(BaseModel):
+    document_id: str
+    policy_id: str
+    brand_name: str
+    filename: str
+    sha256: str
+
+
+class GuidelineExtractionPreview(BaseModel):
+    filename: str
+    sha256: str
+    source_type: Literal["pdf", "jpg", "jpeg", "png"]
+    detected_kind: Literal["native_pdf", "scanned_pdf", "mixed_pdf", "image"]
+    page_count: int
+    usable_page_count: int
+    failed_page_count: int
+    low_confidence_page_count: int
+    native_page_count: int
+    ocr_page_count: int
+    extraction_methods: list[Literal["native_pdf", "ocr"]] = Field(default_factory=list)
+    average_ocr_confidence: float | None = None
+    warnings: list[str] = Field(default_factory=list)
+    duplicate_of: DuplicateDocumentInfo | None = None
+    pages: list[ExtractedPage] = Field(default_factory=list)
+
+
+class ReviewedPageInput(BaseModel):
+    page: int = Field(..., ge=1, le=200)
+    text: str
+    extraction_method: Literal["native_pdf", "ocr"] = "ocr"
+    ocr_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class GuidelinePageRetryResponse(BaseModel):
+    filename: str
+    page: int
+    page_data: ExtractedPage
 
 
 class GuidelineDocumentResponse(BaseModel):
@@ -78,6 +132,14 @@ class GuidelineDocumentResponse(BaseModel):
     sha256: str
     shared_demo: bool
     retrieval_method: str
+    source_type: Literal["pdf", "jpg", "jpeg", "png"] = "pdf"
+    detected_kind: Literal["native_pdf", "scanned_pdf", "mixed_pdf", "image"] = "native_pdf"
+    extraction_methods: list[Literal["native_pdf", "ocr"]] = Field(default_factory=list)
+    native_page_count: int = 0
+    ocr_page_count: int = 0
+    average_ocr_confidence: float | None = None
+    duplicate_of: DuplicateDocumentInfo | None = None
+    pages: list[ExtractedPage] = Field(default_factory=list)
 
 
 class AuditResponse(BaseModel):
