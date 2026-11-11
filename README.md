@@ -95,7 +95,7 @@ npm run dev
 
 1. Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 2. Click **"Demo Login"** and pick the **Creator** or **Manager** role.
-3. Click **"Try a Sample Audit"** to load the Bootwear PDF, then choose **"Try paraphrased claims"**.
+3. Click **"Try the Bootwear PDF demo"** to load the Bootwear PDF, then choose **"Try paraphrased claims"**.
 4. Click **"Run Audit"** and expand a finding's evidence check. The paraphrase demo works with `AI_PROVIDER=local` and no API key.
 5. Click **"Review Auto-Fix edits"**, inspect the comparison and explanations, then accept or reject individual changes and choose **"Use accepted edits"**.
 6. Click **"Save Revision & Re-audit"** to assess the revised draft. Remaining findings still need attention and human review.

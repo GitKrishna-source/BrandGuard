@@ -32,7 +32,8 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<Role>('creator');
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
   const [auditQuery, setAuditQuery] = useState('');
-  const [sampleAudit, setSampleAudit] = useState<{ guideline: GuidelineDocumentResponse; run: number } | null>(null);
+  const [sampleAudit, setSampleAudit] = useState<GuidelineDocumentResponse | null>(null);
+  const [auditLaunch, setAuditLaunch] = useState(0);
   const [isPreparingSample, setIsPreparingSample] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
   const [latestAudit, setLatestAudit] = useState<ApiAuditResponse | null>(null);
@@ -88,6 +89,7 @@ export default function App() {
     if (isPreparingSample) return;
     setSampleAudit(null);
     setAuditQuery(query);
+    setAuditLaunch((launch) => launch + 1);
     openAudit();
   };
 
@@ -99,7 +101,8 @@ export default function App() {
       const signal = AbortSignal.timeout(45000);
       if (!getAccessToken()) await handleSignIn('creator', signal);
       const guideline = await loadBootwearDemo(signal);
-      setSampleAudit((previous) => ({ guideline, run: (previous?.run ?? 0) + 1 }));
+      setSampleAudit(guideline);
+      setAuditLaunch((launch) => launch + 1);
       setLatestAudit(null);
       setExportAuditId(undefined);
       setIsVaultModalOpen(false);
@@ -184,13 +187,13 @@ export default function App() {
 
       {/* Interactive Modals */}
       <AuditModal
-        key={`${currentRole}:${sampleAudit?.run ?? 0}`}
+        key={`${currentRole}:${auditLaunch}`}
         currentRole={currentRole}
         onContextChange={() => { setLatestAudit(null); setExportAuditId(undefined); }}
         isOpen={isAuditModalOpen && isAuthenticated}
         onClose={() => setIsAuditModalOpen(false)}
         initialText={sampleAudit ? BOOTWEAR_SAMPLE_DRAFT : auditQuery || undefined}
-        initialGuideline={sampleAudit?.guideline}
+        initialGuideline={sampleAudit ?? undefined}
         onAuditComplete={setLatestAudit}
         onExportAudit={handleExportAudit}
       />

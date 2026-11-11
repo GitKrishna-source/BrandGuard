@@ -54,10 +54,10 @@ export default function GuidelineSourcePanel({ document, onChange, role, disable
       <div className="flex items-start gap-3">
         <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-ink">{document ? `Auditing for ${document.brand_name}` : 'Try Bootwear, our shoe brand demo'}</h3>
+          <h3 className="text-sm font-semibold text-ink">{document ? `Auditing for ${document.brand_name}` : 'Add brand guidelines to this audit'}</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted">{document
-            ? `${document.filename} / ${document.page_count} pages / ${document.chunk_count} searchable passages. Findings cite the PDF evidence used.`
-            : 'Load the Bootwear guideline PDF, then audit copy against its voice, terminology, product facts, and claims policy.'}</p>
+            ? `${document.filename} / ${document.page_count} pages / ${document.chunk_count} searchable passages. Edit the draft below, then run the audit for page citations and evidence checks.`
+            : 'General review is active. Choose Use Bootwear PDF to check your current draft against the demo guidelines and see citation assessments.'}</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
