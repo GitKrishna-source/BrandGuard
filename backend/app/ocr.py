@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import inspect
+import logging
 import re
 import threading
 from collections.abc import Iterator
@@ -15,6 +15,8 @@ from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 from pypdf import PdfReader
 
 from app.schemas import DuplicateDocumentInfo, ExtractedPage, GuidelineExtractionPreview
+
+logger = logging.getLogger(__name__)
 
 SourceType = Literal["pdf", "jpg", "jpeg", "png"]
 DetectedKind = Literal["native_pdf", "scanned_pdf", "mixed_pdf", "image"]
@@ -63,23 +65,16 @@ def _alnum_count(text: str) -> int:
     return sum(1 for char in text if char.isalnum())
 
 
-def _configure_cls_flag(engine: Any, enabled: bool) -> None:
-    if hasattr(engine, "use_angle_cls"):
-        engine.use_angle_cls = enabled
-    if hasattr(engine, "use_cls"):
-        engine.use_cls = enabled
-
-
 def _get_ocr_engine() -> Any:
     global _OCR_ENGINE
     with _OCR_LOCK:
         if _OCR_ENGINE is None:
             try:
-                from rapidocr_onnxruntime import RapidOCR
+                from rapidocr import RapidOCR
 
                 _OCR_ENGINE = RapidOCR()
-                _configure_cls_flag(_OCR_ENGINE, False)
             except Exception as error:
+                logger.exception("Failed to initialize RapidOCR")
                 raise OcrEngineUnavailableError("OCR engine could not be initialized on the server.") from error
         return _OCR_ENGINE
 
@@ -240,48 +235,31 @@ def _parse_ocr_boxes(raw_result: Any) -> OcrPassResult:
     return OcrPassResult(text=text, confidence=avg_conf, line_count=len(rendered_lines))
 
 
-def _pil_to_bgr_array(np_module: Any, image: Image.Image) -> Any:
-    rgb_array = np_module.asarray(image, dtype=np_module.uint8)
-    # RapidOCR's LoadImage treats ndarray inputs as OpenCV BGR rather than RGB.
-    return np_module.ascontiguousarray(rgb_array[..., ::-1])
-
-
-def _invoke_ocr(engine: Any, image_array: Any, *, use_angle_cls: bool = False) -> OcrPassResult:
+def _invoke_ocr(engine: Any, image: Image.Image, *, use_angle_cls: bool = False) -> OcrPassResult:
     with _OCR_LOCK:
-        prev_angle_cls = getattr(engine, "use_angle_cls", None)
-        prev_cls = getattr(engine, "use_cls", None)
-        _configure_cls_flag(engine, use_angle_cls)
         try:
-            try:
-                params = inspect.signature(engine).parameters
-            except (TypeError, ValueError):
-                params = {}
-            if "use_cls" in params:
-                raw_result, _ = engine(image_array, use_cls=use_angle_cls)
-            else:
-                raw_result, _ = engine(image_array)
-        finally:
-            if hasattr(engine, "use_angle_cls") and prev_angle_cls is not None:
-                engine.use_angle_cls = prev_angle_cls
-            if hasattr(engine, "use_cls") and prev_cls is not None:
-                engine.use_cls = prev_cls
-    return _parse_ocr_boxes(raw_result)
+            result = engine(image, use_cls=use_angle_cls)
+        except ImportError as error:
+            # RapidOCR loads ONNX Runtime and its models on the first inference call.
+            logger.exception("Failed to load the RapidOCR inference runtime")
+            raise OcrEngineUnavailableError("OCR engine could not be initialized on the server.") from error
+    boxes = getattr(result, "boxes", None)
+    texts = getattr(result, "txts", None)
+    scores = getattr(result, "scores", None)
+    if boxes is None or texts is None or scores is None:
+        return OcrPassResult(text="", confidence=None)
+    return _parse_ocr_boxes(list(zip(boxes, texts, scores, strict=True)))
 
 
 def run_ocr_on_pil(image: Image.Image, *, enhanced: bool = False) -> OcrPassResult:
-    try:
-        import numpy as np
-    except Exception as error:
-        raise OcrEngineUnavailableError("OCR numerical dependency (numpy) is not installed on the server.") from error
-
     engine = _get_ocr_engine()
     prepared = _prepare_pil_image(image, enhanced=enhanced)
-    primary = _invoke_ocr(engine, _pil_to_bgr_array(np, prepared), use_angle_cls=False)
+    primary = _invoke_ocr(engine, prepared, use_angle_cls=False)
 
     # Automatically try an enhanced + orientation-aware pass when upright OCR finds nothing or reads poorly.
     if _alnum_count(primary.text) == 0 or (primary.confidence is not None and primary.confidence < 0.55):
         enhanced_img = _prepare_pil_image(image, enhanced=True) if not enhanced else prepared
-        secondary = _invoke_ocr(engine, _pil_to_bgr_array(np, enhanced_img), use_angle_cls=True)
+        secondary = _invoke_ocr(engine, enhanced_img, use_angle_cls=True)
         if _pick_better_ocr_result(primary, secondary) is secondary:
             return secondary
     return primary
