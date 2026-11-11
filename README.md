@@ -1,8 +1,25 @@
 # BrandGuard AI
 
-BrandGuard AI helps marketing and review teams check drafts and creative assets before publication. It flags issues such as unsupported claims, unapproved terminology, and missing image descriptions. Teams can review proposed edits, re-audit a revision, record human decisions, and export the audit as PDF or JSON.
+BrandGuard AI helps marketing teams review copy, documents, and images before publication. It flags issues such as unsupported claims, unapproved terminology, and missing image descriptions. The React frontend sends audits to a FastAPI backend that can run locally without an AI API key.
 
-[Run locally](#run-locally) · [Try the demo](#try-the-demo) · [Connect WordPress](#connect-wordpress-optional) · [Configure an AI provider](#configure-an-ai-provider) · [Run checks](#development-checks) · [Troubleshooting](#troubleshooting)
+## Project workflow
+
+```mermaid
+flowchart TD
+    Input["Paste copy or upload a document or image"] --> Policy{"Brand guidelines selected?"}
+    Policy -->|Yes| Retrieve["Retrieve relevant guideline passages"]
+    Policy -->|No| General["Use built-in content policy"]
+    Retrieve --> Audit["Audit with local rules, Groq, or Gemini"]
+    General --> Audit
+    Audit --> Findings["Review the score, findings, and available citations"]
+    Findings -->|Revise and re-audit| Policy
+    Findings --> Review["Request human review"]
+    Review --> Report["Export the audit as PDF or JSON"]
+```
+
+When guidelines are selected, BrandGuard uses BM25 keyword matching and concept matching to retrieve and cite relevant passages. Auto-Fix lets you accept individual edits before saving and re-auditing a revision. Managers and Legal reviewers can request changes or approve a draft. A draft with a high-severity finding requires Legal approval.
+
+[Run locally](#run-locally) · [Demo login and walkthrough](#try-the-demo) · [Connect WordPress](#connect-wordpress-optional) · [Configure an AI provider](#configure-an-ai-provider) · [Run checks](#development-checks) · [Troubleshooting](#troubleshooting)
 
 ## Run locally
 
@@ -154,13 +171,7 @@ docker compose up --build
 
 Compose runs the API on port 8000 and PostgreSQL on port 5432. PostgreSQL data persists in the `brandguard-postgres` volume. Start the frontend separately from the repository root with `npm run dev:frontend`. Run `docker compose down` from `backend` to stop the containers.
 
-## How BrandGuard works
-
-1. **Audit an input.** The React studio sends pasted copy or an upload to FastAPI. A general audit uses the built-in policy. Selecting a guideline source uses the associated brand policy.
-2. **Retrieve evidence.** BrandGuard combines BM25 keyword matching with English concept matching to rank page-linked passages from the guideline source. It selects up to six passages for an audit.
-3. **Record findings.** The engine produces a readiness score and findings with excerpts, severity, and suggestions. For source-backed findings, the audit records citation support such as **supported**, **weak**, or **unverified**. A configured provider can perform a separate citation check against the supplied evidence.
-4. **Revise and review.** Auto-Fix proposes text edits for individual approval. Saving a revision re-runs the audit and preserves its link to the earlier draft. Creators can access their own audits and request review. Managers and Legal reviewers can access the workspace review queue.
-5. **Export the record.** PDF and JSON reports use saved findings, policy snapshots, retrieved passages, and review decisions. Citation checks assess the supplied evidence. Independent fact-checking and approval are human review steps.
+## Technology stack
 
 | Area | Implementation |
 | --- | --- |
