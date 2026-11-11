@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Copy, Download, FileText, LoaderCircle, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { downloadAuditPdf, getAuditReport, listAudits } from '../../lib/api';
 import type { ApiAuditReport, ApiAuditResponse, ModalProps } from '../../types';
+import FindingEvidence from '../FindingEvidence';
 
 interface Props extends ModalProps { auditId?: string; onStartAudit: () => void }
 const label = (value: string) => value.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase());
@@ -115,7 +116,22 @@ export default function ExportReportModal({ isOpen, onClose, auditId, onStartAud
               <dl className="grid gap-4 rounded-xl border border-accent/10 p-4 text-xs sm:grid-cols-2">
                 {[['Audit ID', report.audit.id], ['Audited', date(report.audit.created_at)], ['Owner', report.owner || 'Not recorded'], ['Source', report.source_filename || (report.audit.content_type === 'text' ? 'Text draft' : 'Upload')], ['Policy', report.policy_snapshot?.name || 'Historical snapshot not recorded'], ['Parent revision', report.audit.parent_audit_id || 'Original audit']].map(([key, value]) => <div key={key} className="min-w-0"><dt className="mb-1 text-muted">{key}</dt><dd className="break-words text-secondary">{value}</dd></div>)}
               </dl>
-              <section aria-label="Recorded findings"><h3 className="mb-3 text-sm font-semibold text-ink">Automated findings</h3>{!report.audit.findings.length && <p className="text-sm text-muted">No findings recorded. Human approval is shown separately above.</p>}<div className="space-y-3">{report.audit.findings.map((finding, index) => <article key={index} className="rule-preview space-y-2 text-xs leading-5"><p className="font-semibold text-accent">{label(finding.category)} / {finding.severity}</p><p className="text-secondary">{finding.message}</p><p className="break-words text-muted">Evidence: “{finding.evidence}”</p><p className="text-secondary">Suggestion: {finding.suggestion}</p><p className="text-muted">Source: {finding.source}</p></article>)}</div></section>
+              <section aria-label="Recorded findings">
+                <h3 className="mb-3 text-sm font-semibold text-ink">Automated findings</h3>
+                {!report.audit.findings.length && <p className="text-sm text-muted">No findings recorded. Human approval is shown separately above.</p>}
+                <div className="space-y-3">
+                  {report.audit.findings.map((finding, index) => (
+                    <article key={index} className="rule-preview space-y-2 text-xs leading-5">
+                      <p className="font-semibold text-accent">{label(finding.category)} / {finding.severity}</p>
+                      <p className="text-secondary">{finding.message}</p>
+                      <p className="break-words text-muted">Evidence: “{finding.evidence}”</p>
+                      <p className="text-secondary">Suggestion: {finding.suggestion}</p>
+                      <p className="text-muted">Source: {finding.source}</p>
+                      <FindingEvidence verification={finding.verification} />
+                    </article>
+                  ))}
+                </div>
+              </section>
               <section aria-label="Recorded human reviews"><h3 className="mb-3 text-sm font-semibold text-ink">Human review history</h3>{!report.reviews.length && <p className="text-sm text-muted">No human reviews recorded for this revision.</p>}<div className="space-y-3">{report.reviews.map((review) => <article key={review.id} className="rule-preview space-y-2 text-xs"><p className="font-semibold text-accent">{label(review.reviewer_role)} / {label(review.status)}</p><p className="break-words text-muted">{review.reviewer_username || 'Reviewer identity not recorded'} / {date(review.created_at)}</p>{review.comment && <p className="whitespace-pre-wrap break-words text-secondary">{review.comment}</p>}</article>)}</div></section>
               <details className="rule-preview text-xs"><summary className="cursor-pointer text-accent">Saved content and text checksum</summary><p className="my-3 text-muted">Coverage: {label(report.content_coverage)}</p>{report.content_sha256 && <p className="mb-3 break-all font-sans text-[10px] text-muted">SHA-256 of saved UTF-8 text: {report.content_sha256}</p>}<pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-6 text-secondary">{report.content || 'No source text retained.'}</pre></details>
               <details className="rule-preview text-xs"><summary className="cursor-pointer text-accent">Policy snapshot used for this audit</summary><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words leading-6 text-muted">{report.policy_snapshot ? JSON.stringify(report.policy_snapshot, null, 2) : 'A historical policy snapshot is unavailable for this older audit.'}</pre></details>

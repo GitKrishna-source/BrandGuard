@@ -33,6 +33,19 @@ class AuditCreate(BaseModel):
     content: str = Field(min_length=1)
 
 
+class CitationCheck(BaseModel):
+    citation_id: str
+    status: Literal["supported", "weak", "unsupported", "unverified"]
+    reason: str
+    quote: str | None = None
+
+
+class EvidenceVerification(BaseModel):
+    status: Literal["supported", "weak", "unsupported", "unverified", "uncited"]
+    reason: str
+    citations: list[CitationCheck] = Field(default_factory=list)
+
+
 class Finding(BaseModel):
     category: str
     severity: Literal["low", "medium", "high"]
@@ -40,6 +53,7 @@ class Finding(BaseModel):
     evidence: str
     suggestion: str
     source: str
+    verification: EvidenceVerification | None = None
 
 
 class RetrievedSource(BaseModel):
@@ -51,6 +65,7 @@ class RetrievedSource(BaseModel):
     text: str
     document_sha256: str
     relevance: float
+    match_types: list[Literal["keyword", "semantic"]] = Field(default_factory=list)
 
 
 class GuidelineDocumentResponse(BaseModel):
@@ -62,7 +77,7 @@ class GuidelineDocumentResponse(BaseModel):
     chunk_count: int
     sha256: str
     shared_demo: bool
-    retrieval_method: str = "BM25 keyword retrieval over page-labelled PDF passages"
+    retrieval_method: str
 
 
 class AuditResponse(BaseModel):

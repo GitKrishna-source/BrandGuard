@@ -189,7 +189,7 @@ def run_text_audit(db, policy, user, content):
 def source_data_handling(engine, sources):
     notice = audit_data_handling(engine)
     if sources is not None:
-        notice += " Guideline PDFs are retained in the database. When AI is used, retrieved passages accompany the request; indexing and retrieval run locally."
+        notice += " Guideline PDFs are retained in the database. Search runs locally. When AI is used, the draft or asset and relevant passages may also be sent for a citation check."
     return notice
 
 

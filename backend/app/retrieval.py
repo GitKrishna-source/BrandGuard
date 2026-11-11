@@ -1,4 +1,4 @@
-"""Local PDF ingestion and BM25 retrieval. No embedding service receives documents."""
+"""Local PDF ingestion and hybrid retrieval over page-labelled passages."""
 
 import hashlib
 import math
@@ -16,11 +16,12 @@ from sqlalchemy.orm import Session
 
 from .models import BrandPolicy, GuidelineDocument
 from .schemas import GuidelineDocumentResponse, RetrievedSource
+from .semantics import concepts
 
 BOOTWEAR_POLICY_ID = "bootwear-demo-v1"
 BOOTWEAR_DOCUMENT_ID = "bootwear-guidelines-v1"
 BOOTWEAR_PDF = Path(__file__).parent / "assets" / "bootwear-brand-guidelines.pdf"
-RETRIEVAL_METHOD = "BM25 keyword retrieval over page-labelled PDF passages"
+RETRIEVAL_METHOD = "BM25 keyword and semantic concept search over page-labelled PDF passages"
 STOPWORDS = {"a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "have",
              "i", "in", "is", "it", "its", "of", "on", "or", "our", "the", "their", "these", "this",
              "to", "was", "we", "with", "your"}
@@ -137,36 +138,58 @@ def document_info(document: GuidelineDocument, db: Session) -> GuidelineDocument
         id=document.id, policy_id=document.policy_id,
         brand_name=db.get(BrandPolicy, document.policy_id).name,
         filename=document.filename, page_count=document.page_count, chunk_count=len(document.chunks),
-        sha256=document.sha256, shared_demo=document.shared_demo,
+        sha256=document.sha256, shared_demo=document.shared_demo, retrieval_method=RETRIEVAL_METHOD,
     )
 
 
-def retrieve(document: GuidelineDocument, query: str, limit: int = 6) -> list[RetrievedSource]:
-    """BM25 with k1=1.5, b=0.75; only this document's passages can be returned."""
-    query_tokens = set(tokens(query))
-    corpus = [tokens(chunk["text"]) for chunk in document.chunks]
+def bm25_scores(corpus: list[list[str]], query_tokens: set[str]) -> list[float]:
+    """BM25 with k1=1.5 and b=0.75."""
     count = len(corpus)
     average = sum(map(len, corpus)) / max(1, count)
     frequencies = Counter(word for passage in corpus for word in set(passage))
     scored = []
-    for index, passage in enumerate(corpus):
+    for passage in corpus:
         term_counts = Counter(passage)
         score = 0.0
-        for word in query_tokens:
+        for word in sorted(query_tokens):
             freq = term_counts[word]
             if not freq:
                 continue
             idf = math.log(1 + (count - frequencies[word] + 0.5) / (frequencies[word] + 0.5))
             score += idf * freq * 2.5 / (freq + 1.5 * (0.25 + 0.75 * len(passage) / max(1, average)))
-        if score > 0:
-            scored.append((score, index))
-    ranked = sorted(scored, key=lambda pair: (-pair[0], pair[1]))[:limit]
+        scored.append(score)
+    return scored
+
+
+def semantic_scores(passages: list[str], query: str) -> list[float]:
+    query_concepts = concepts(query)
+    passage_concepts = [concepts(passage) for passage in passages]
+    frequency = Counter(concept for passage in passage_concepts for concept in passage)
+    weights = {key: math.log1p(len(passages) / count) for key, count in frequency.items()}
+    return [
+        sum(weights[key] for key in sorted(query_concepts & passage))
+        / math.sqrt(max(1, len(passage)))
+        for passage in passage_concepts
+    ]
+
+
+def retrieve(document: GuidelineDocument, query: str, limit: int = 6) -> list[RetrievedSource]:
+    passages = [chunk["text"] for chunk in document.chunks]
+    keyword = bm25_scores([tokens(passage) for passage in passages], set(tokens(query)))
+    semantic = semantic_scores(passages, query)
+    keyword_max = max(keyword, default=0) or 1
+    semantic_max = max(semantic, default=0) or 1
+    scores = [0.7 * k / keyword_max + 0.3 * s / semantic_max for k, s in zip(keyword, semantic)]
+    ranked = sorted((i for i, score in enumerate(scores) if score > 0),
+                    key=lambda i: (-scores[i], i))[:max(0, limit)]
     return [RetrievedSource(
         citation_id=f"S{rank}", document_id=document.id, filename=document.filename,
         page=document.chunks[index]["page"], chunk_id=document.chunks[index]["chunk_id"],
         text=document.chunks[index]["text"], document_sha256=document.sha256,
-        relevance=round(score, 4),
-    ) for rank, (score, index) in enumerate(ranked, 1)]
+        relevance=round(scores[index], 4),
+        match_types=[kind for kind, score in (("keyword", keyword[index]),
+                                               ("semantic", semantic[index])) if score > 0],
+    ) for rank, index in enumerate(ranked, 1)]
 
 
 def audit_sources(db: Session, policy_id: str, user: dict[str, str], query: str):

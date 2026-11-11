@@ -17,6 +17,7 @@ import {
 import type { ChangeEvent } from 'react';
 import type { ApiAuditResponse, GuidelineDocumentResponse, ImageAuditResponse, ModalProps, RemediateResponse, RetrievedSource, Role, TextAuditResponse } from '../../types';
 import GuidelineSourcePanel from '../GuidelineSourcePanel';
+import FindingEvidence from '../FindingEvidence';
 import RemediationReview from '../RemediationReview';
 import { validateRemediationProposal } from '../../lib/remediation';
 import { createRevision, createTextAudit, getAuditReport, remediateContent, uploadAudit } from '../../lib/api';
@@ -149,11 +150,13 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           quote: finding.evidence,
           explanation: `${finding.message} Source: ${finding.source}`,
           suggestedFix: finding.suggestion,
+          verification: finding.verification,
         }))
       : [{
           type: 'General content review', severity: 'Clean', quote: 'No issues detected',
           explanation: 'This check found no issues. It does not independently verify facts or grant approval.',
           suggestedFix: 'Send the draft for human review.',
+          verification: null,
         }];
     setAuditResult({
       score: response.score,
@@ -253,15 +256,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           if (version !== requestVersion.current || !openRef.current) return;
           setImageAuditResult({
             score: response.score,
-            primaryPaletteMatch: response.findings[0]?.message || 'No issues detected by this visual check',
-            logoPlacement: response.findings[0]?.suggestion || 'Review the asset before publication.',
-            accessibilityContrast: 'Requires accessibility contrast verification',
-            flags: response.findings.map((finding) => ({
-              severity: finding.severity,
-              issue: finding.category,
-              detail: finding.message,
-              recommendation: finding.suggestion,
-            })),
+            findings: response.findings,
           });
           onAuditComplete(response);
           setLastSavedAuditId(response.id);
@@ -319,7 +314,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 BrandGuard Live Multi-Content Audit Studio
               </h2>
               <p className="text-xs font-sans text-muted">
-                {guideline ? 'PDF-grounded brand review / Retrieved evidence cited in findings' : 'General content review / Clarity, tone, grammar, and claims needing evidence'}
+                {guideline ? 'Brand review with hybrid search and evidence checks' : 'General content review / Clarity, tone, grammar, and claims needing evidence'}
               </p>
             </div>
           </div>
@@ -385,7 +380,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 <label htmlFor="audit-draft" className="text-xs font-sans text-secondary  ">
                   Draft Content Input:
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap justify-end gap-x-2 gap-y-1">
                   <button
                     onClick={() => changeText(guideline?.shared_demo ? 'Bootwear Everyday is an everyday walking shoe. Bootwear Everyday costs INR 2,499. Bootwear accepts unworn shoes within 14 days of delivery.' : 'Contact our team to learn more about our services.')}
                     disabled={busy}
@@ -401,6 +396,15 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                   >
                     {guideline?.shared_demo ? 'Load Bootwear test draft' : 'Load High-Risk Sample'}
                   </button>
+                  {guideline?.shared_demo && (
+                    <button
+                      onClick={() => changeText('Bootwear Everyday keeps water out in any weather. These shoes banish aching feet. The upper uses repurposed fabric.')}
+                      disabled={busy}
+                      className="text-[11px] font-sans text-accent hover:underline"
+                    >
+                      Try paraphrased claims
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -523,6 +527,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                         <span className="text-muted text-[10px]">Flagged: "{f.quote}"</span>
                       </div>
                       <p className="text-secondary mb-2 leading-relaxed">{f.explanation}</p>
+                      <FindingEvidence verification={f.verification} />
                       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-sans bg-surface/80 p-2 rounded border border-line">
                         <div className="flex items-center gap-1.5 text-accent">
                           <span className="text-muted  text-[9px]">AI Suggestion:</span>
@@ -588,18 +593,17 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                         <span className="text-muted">Visual Brand Score:</span>
                         <span className="text-accent font-bold">{imageAuditResult.score} / 100</span>
                       </div>
-                      <div>
-                        <span className="text-muted block text-[10px]">VISUAL REVIEW:</span>
-                        <span className="text-accent">{imageAuditResult.primaryPaletteMatch}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted block text-[10px]">RECOMMENDATION:</span>
-                        <span className="text-accent">{imageAuditResult.logoPlacement}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted block text-[10px]">WCAG CONTRAST:</span>
-                        <span className="text-accent">{imageAuditResult.accessibilityContrast}</span>
-                      </div>
+                      {imageAuditResult.findings.length === 0 && <p className="text-muted">No issues detected by this visual check.</p>}
+                      {imageAuditResult.findings.map((finding, index) => (
+                        <article key={index} className="space-y-1.5 rounded-lg border border-line p-3">
+                          <p className="font-semibold text-ink">{finding.category.replace(/_/g, ' ')} / {finding.severity}</p>
+                          <p className="text-secondary">{finding.message}</p>
+                          <p className="text-muted">{finding.evidence}</p>
+                          <p className="text-muted">{finding.source}</p>
+                          <FindingEvidence verification={finding.verification} />
+                          <p className="text-accent">{finding.suggestion}</p>
+                        </article>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-xs font-sans text-accent animate-pulse">
@@ -660,10 +664,11 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
 
         {retrievalMethod && <details className="mx-6 mb-5 rounded-xl border border-accent/20 bg-surface-deep/50 p-4 text-xs">
           <summary className="cursor-pointer font-semibold text-accent">PDF evidence used in this audit ({retrievedSources.length} passages)</summary>
-          <p className="mt-3 text-muted">{retrievalMethod}. These saved passages support review; source consistency is not independent fact verification.</p>
+          <p className="mt-3 text-muted">{retrievalMethod}. See each finding for its citation assessment.</p>
           {retrievedSources.length === 0 && <p className="mt-3 text-open">No relevant passage was retrieved. Missing facts require clarification.</p>}
           {retrievedSources.map((source) => <div key={source.citation_id} className="mt-3 rounded-lg border border-line p-3">
             <p className="font-semibold text-accent">[{source.citation_id}] {source.filename} / Page {source.page} / {source.chunk_id}</p>
+            {!!source.match_types?.length && <p className="mt-1 text-muted">Matched by {source.match_types.join(' + ')} search</p>}
             <p className="mt-2 whitespace-pre-wrap leading-relaxed text-secondary">{source.text}</p>
           </div>)}
         </details>}

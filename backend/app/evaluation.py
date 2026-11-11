@@ -11,6 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from . import services
+from .evidence import source_label
 from .models import BrandPolicy, GuidelineDocument
 from .policies import BASIC_GUIDELINES, BASIC_POLICY_ID
 from .retrieval import BOOTWEAR_PDF, extract_chunks, policy_from_chunks, retrieve
@@ -83,7 +84,7 @@ def score_case(case: AuditCase, findings: list[Finding], sources: list[Retrieved
             correct = bool(cited_ids) and all(
                 citation in by_id
                 and expected.rule_id in re.findall(r"\bBW-\d{2}\b", by_id[citation].text)
-                and services._source_label(by_id[citation]) in findings[index].source
+                and source_label(by_id[citation]) in findings[index].source
                 for citation in cited_ids
             )
             citations.append({"expected_rule": expected.rule_id, "correct": correct,

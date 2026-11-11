@@ -45,6 +45,7 @@ export interface AuditFinding {
   quote: string;
   explanation: string;
   suggestedFix: string;
+  verification?: EvidenceVerification | null;
 }
 
 export interface TextAuditResponse {
@@ -64,6 +65,19 @@ export interface BrandPolicyResponse {
   created_at: string;
 }
 
+export type EvidenceStatus = 'supported' | 'weak' | 'unsupported' | 'unverified' | 'uncited';
+
+export interface EvidenceVerification {
+  status: EvidenceStatus;
+  reason: string;
+  citations: Array<{
+    citation_id: string;
+    status: Exclude<EvidenceStatus, 'uncited'>;
+    reason: string;
+    quote?: string | null;
+  }>;
+}
+
 export interface ApiFinding {
   category: string;
   severity: 'low' | 'medium' | 'high';
@@ -71,6 +85,7 @@ export interface ApiFinding {
   evidence: string;
   suggestion: string;
   source: string;
+  verification?: EvidenceVerification | null;
 }
 
 export interface ApiAuditResponse {
@@ -98,6 +113,7 @@ export interface RetrievedSource {
   text: string;
   document_sha256: string;
   relevance: number;
+  match_types?: Array<'keyword' | 'semantic'>;
 }
 
 export interface GuidelineDocumentResponse {
@@ -151,10 +167,7 @@ export interface LoginResponse { access_token: string; token_type: string; user:
 
 export interface ImageAuditResponse {
   score: number;
-  primaryPaletteMatch: string;
-  logoPlacement: string;
-  accessibilityContrast: string;
-  flags: Array<{ severity: string; issue: string; detail: string; recommendation: string }>;
+  findings: ApiFinding[];
 }
 
 export interface ApprovalComment { author: string; text: string; time: string }

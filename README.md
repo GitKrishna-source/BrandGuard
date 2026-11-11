@@ -26,9 +26,9 @@ When marketing teams, copywriters, or generative AI create content (product anno
 ```mermaid
 graph TD
     A[Content Input: Text / PDF / DOCX / Image] --> B[Brand Policy & Guideline Vault]
-    B --> C[BM25 Local PDF RAG: Page-Level Chunk Retrieval]
+    B --> C[Hybrid PDF Search: BM25 and Semantic Concepts]
     C --> D[AI Audit Engine: Groq Qwen / Google Gemini]
-    D --> E[Violation Findings with Exact Page Citations]
+    D --> E[Findings with Citation Support Checks]
     E --> F[Review Auto-Fix proposals and accept individual edits]
     F --> G[Save revision and re-audit]
     G --> H[Multi-Stage Role Approval: Creator -> Manager -> Legal]
@@ -37,11 +37,11 @@ graph TD
 
 1. **Content Input:**
    - Paste custom copy, upload creative assets (PDF, DOCX, PNG/JPG images), or load the interactive **Bootwear Brand Guidelines** demo.
-2. **Local BM25 PDF RAG Retrieval:**
-   - The backend extracts page-labelled chunks from the brand guidelines PDF. Relevant evidence passages and rules are retrieved without needing an external vector DB.
+2. **Hybrid PDF retrieval**
+   - BrandGuard ranks page-labelled passages using BM25 keyword matches and shared concepts. For example, “banishes aching feet” can retrieve a policy on pain-relief claims.
 3. **Deep LLM Audit:**
    - The draft and retrieved evidence are evaluated by **Groq (`qwen/qwen3.8-27b`)** or **Google Gemini**.
-   - Findings report exact evidence, severity, explanation, and source citations (e.g., `[S2] bootwear-brand-guidelines.pdf, p. 4, p4-c13`).
+   - Findings show the draft excerpt, page citations, and whether each citation supports the conclusion. Expand the evidence check to see the reason and the exact passage quote.
 4. **Auto-Fix review (Remediation):**
    - Click **"Review Auto-Fix edits"** to compare the original and proposed draft, inspect each change's explanation, and accept or reject it individually.
    - **"Use accepted edits"** changes only the selected wording. **"Undo Fix"** restores the previous draft; save a revision and re-audit to assess it.
@@ -83,7 +83,7 @@ npm run dev
 |---|---|
 | **Frontend** | React 18, TypeScript (strict), Vite, Tailwind CSS, Lucide Icons, Canvas Confetti |
 | **Backend** | Python 3.11+, FastAPI, SQLAlchemy, Uvicorn, Pydantic v2 |
-| **AI & RAG** | Groq Cloud (`qwen/qwen3.8-27b`), Google Gemini (`gemini-2.5-flash`), Local BM25 Page-Level PDF RAG |
+| **AI & RAG** | Groq Cloud, Google Gemini, local BM25 and semantic concept retrieval |
 | **Parsers** | `pypdf` (PDF), `python-docx` (Word), `Pillow` (Image & Palette), `reportlab` (PDF generation) |
 | **Security & Auth** | JWT Bearer tokens, Argon2 password hashing, Role-Based Access Control (RBAC) |
 | **Database** | SQLite (local development) / PostgreSQL (production Docker Compose ready) |
@@ -94,9 +94,9 @@ npm run dev
 ## 🧪 6. Quick Verification Guide
 
 1. Open **[http://localhost:3000](http://localhost:3000)** in your browser.
-2. Click **"Sign In"** in the top navigation bar and pick **Creator** or **Manager** demo role.
-3. Click **"Run Custom Audit"** -> Click **"Load Bootwear test draft"**.
-4. Click **"Audit content"** to see live Groq LLM violations with page citations.
+2. Click **"Demo Login"** and pick the **Creator** or **Manager** role.
+3. Click **"Try a Sample Audit"** to load the Bootwear PDF, then choose **"Try paraphrased claims"**.
+4. Click **"Run Audit"** and expand a finding's evidence check. The paraphrase demo works with `AI_PROVIDER=local` and no API key.
 5. Click **"Review Auto-Fix edits"**, inspect the comparison and explanations, then accept or reject individual changes and choose **"Use accepted edits"**.
 6. Click **"Save Revision & Re-audit"** to assess the revised draft. Remaining findings still need attention and human review.
    

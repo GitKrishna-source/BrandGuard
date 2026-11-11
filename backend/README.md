@@ -28,14 +28,23 @@ Markdown image descriptions; contextual clarity and tone review needs the AI pro
 PDFs are limited to the configured upload size, 100 pages, and 250,000 extracted characters.
 Scanned, empty, encrypted, malformed, and non-PDF sources are rejected. Pages marked as the
 Bootwear evaluation exercise are excluded from indexing. The remaining page-labelled passages
-are ranked locally with BM25 (k1=1.5, b=0.75; up to six passages; ranking aliases normalised).
-Only the selected passages are included in the RAG prompt, not the whole source book.
+are ranked locally by combining BM25 keyword scores with matches on English concepts such as
+ranking, waterproofing, medical benefits, and returns. Each selected passage records which
+signals matched. Up to six passages are sent to the configured audit provider.
 
-There is no embedding service or vector database. The configured provider performs the contextual
-review. Missing or invented citation IDs trigger a disclosed local fallback. A valid citation ID
-establishes that the passage was supplied, not that the model's interpretation is correct; human
-review remains necessary. Limited fallback rules are parsed only from explicit `FACT:`, `TERM:`,
-`TONE:`, `MESSAGING:`, and `PALETTE:` source entries. Free-form PDFs remain searchable for the AI.
+For findings that cite the PDF, a separate provider request checks the conclusion against the
+draft and each cited passage. Text evidence must appear in the draft. Passage quotes must match
+the saved PDF excerpt. The studio and report record **supported**, **weak**, **unsupported**,
+**unverified**, or **uncited**, with per-citation reasons and quotes. If verification times out
+or returns unusable data, the findings are retained with incomplete checks. Invented citation
+IDs in the initial audit still trigger the local fallback.
+
+The keyless path checks explicit terminology, tone, messaging and price rules, plus evidence
+requirements for recognised claim concepts. In the Bootwear studio, use **Try paraphrased claims**
+to see these checks on alternate wording. Local concept matching covers a finite English
+vocabulary. The configured provider handles contextual interpretation of free-form guidelines.
+Evidence verification assesses support within the supplied material. Independent fact checking
+and the approval decision remain human review steps.
 
 The `guideline_documents` table is created on startup alongside the existing tables. Source PDFs,
 their SHA-256 digests, and extracted passages are retained; policies are immutable and a new
@@ -103,7 +112,8 @@ fallback (for example HTTP 404 for an unavailable model or HTTP 429 for quota li
 Provider errors do not include the key, raw provider response, or draft. The provider label
 and data handling notice are saved with new audits.
 
-Local rule checks match phrases and do not provide contextual interpretation.
+Local rule checks match explicit phrases and recognised claim concepts. Contextual interpretation
+uses the configured provider.
 
 ## Audit reliability evaluation
 

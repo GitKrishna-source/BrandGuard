@@ -16,7 +16,7 @@ from app.auth import create_access_token
 from app.db import Base, get_db
 from app.main import app
 from app.models import GuidelineDocument
-from app.retrieval import BOOTWEAR_PDF, extract_chunks, retrieve
+from app.retrieval import BOOTWEAR_PDF, extract_chunks, retrieve, tokens
 
 BAD_DRAFT = ("Bootwear Everyday is the #1 performance racing shoe. These kicks are 100% "
              "waterproof and cure foot pain. Buy them for INR 1,999 with returns on worn shoes for 30 days.")
@@ -97,6 +97,36 @@ def test_retrieval_covers_the_actual_terminology_price_returns_and_claim_rules()
     assert retrieve(document, "zzzxxyyq unusualtoken") == []
 
 
+def test_meaning_based_match_without_shared_keywords_in_uploaded_draft(client):
+    passage = "Do not imply pain-relieving benefits without clinical evidence."
+    draft = "Banish aching feet."
+    assert not set(tokens(passage)) & set(tokens(draft))
+    headers = auth("manager")
+    imported = client.post("/api/guidelines/import", headers=headers,
+                           data={"brand_name": "Acme"}, files={
+                               "file": ("policy.pdf", pdf_bytes(passage), "application/pdf"),
+                           }).json()
+    response = client.post("/api/audits/upload", headers=headers,
+                           data={"policy_id": imported["policy_id"]}, files={
+                               "file": ("draft.txt", draft, "text/plain"),
+                           })
+    assert response.status_code == 201
+    result = response.json()
+    assert result["retrieved_sources"][0]["match_types"] == ["semantic"]
+    assert len(result["findings"]) == 1
+    finding = result["findings"][0]
+    assert finding["evidence"] == "Banish aching feet"
+    assert finding["verification"]["status"] == "supported"
+    assert finding["verification"]["citations"][0]["quote"] == passage
+
+    revision = client.post(f"/api/audits/{result['id']}/revisions", headers=headers, json={
+        "content": "These shoes do not banish aching feet.",
+    }).json()
+    assert revision["findings"] == []
+    report = client.get(f"/api/audits/{result['id']}/report", headers=headers).json()
+    assert report["audit"]["findings"] == result["findings"]
+
+
 def test_local_source_checks_and_revision_keep_saved_evidence_and_approval_gate(client):
     loaded = demo(client)
     response = audit(client, loaded["policy_id"])
@@ -109,6 +139,7 @@ def test_local_source_checks_and_revision_keep_saved_evidence_and_approval_gate(
     assert term["evidence"] == "kicks"
     assert "p. 2" in term["source"]
     assert "[S" in term["source"]
+    assert term["verification"]["status"] == "supported"
     assert "Guideline PDFs are retained" in original["data_handling"]
     revised = client.post(f"/api/audits/{original['id']}/revisions", headers=auth(), json={
         "content": GOOD_DRAFT,
@@ -125,31 +156,84 @@ def test_local_source_checks_and_revision_keep_saved_evidence_and_approval_gate(
     extracted = "\n".join(page.extract_text() for page in PdfReader(BytesIO(pdf.content)).pages)
     assert "Retrieved guideline evidence" in extracted
     assert "BW-05 / Product and price" in extracted
+    assert "Evidence check / Supported" in extracted
     assert loaded["sha256"] in extracted
     assert client.post(f"/api/audits/{original['id']}/reviews", headers=auth("manager"), json={
         "reviewer_role": "manager", "status": "approved",
     }).status_code == 403
 
 
-def test_contextual_groq_audit_receives_only_retrieved_chunks_and_validates_citations(client, monkeypatch):
+def test_local_demo_distinguishes_direct_support_from_a_related_rule(client):
+    loaded = demo(client)
+    draft = ("Bootwear Everyday keeps water out in any weather. These shoes banish aching feet. "
+             "The upper uses repurposed fabric.")
+    result = audit(client, loaded["policy_id"], draft).json()
+    assert {f["evidence"]: f["verification"]["status"] for f in result["findings"]} == {
+        "keeps water out": "supported",
+        "banish aching feet": "supported",
+        "repurposed fabric": "weak",
+    }
+
+
+@pytest.mark.parametrize("verification_status,verifier_quote,expected", [
+    ("supported", "FACT: Bootwear Everyday costs INR 2,499.", "supported"),
+    ("weak", "FACT: Bootwear Everyday costs INR 2,499.", "weak"),
+    ("unsupported", None, "unsupported"),
+    ("supported", "Bootwear costs INR 999.", "unverified"),
+    (None, None, "unverified"),
+])
+def test_contextual_groq_checks_actual_passage_support(
+    client, monkeypatch, verification_status, verifier_quote, expected,
+):
     loaded = demo(client)
     monkeypatch.setattr(services.settings, "ai_provider", "groq")
     monkeypatch.setattr(services.settings, "groq_api_key", "fake-test-key")
     calls = []
+    cited = []
 
     def provider(url, **kwargs):
         prompt = kwargs["json"]["messages"][1]["content"]
         calls.append(prompt)
+        if "Verification data:\n" in prompt:
+            assert len(calls) == 2
+            if verification_status is None:
+                raise httpx.ReadTimeout("Verifier timed out")
+            data = json.loads(prompt.split("Verification data:\n", 1)[1])
+            citation_id = cited[0]["citation_id"]
+            assert list(data["passages"]) == [source["citation_id"] for source in cited]
+            excerpts = data["passages"][citation_id]
+            assert any("BW-05 /" in excerpt for excerpt in excerpts.values())
+            assert data["draft"] == BAD_DRAFT
+            selected = next((key for key, excerpt in excerpts.items() if excerpt == verifier_quote), None)
+            output = {"checks": [{
+                "finding_index": 0, "citation_id": citation_id,
+                "status": verification_status, "excerpt_id": selected,
+                "quote": verifier_quote if selected is None else None,
+                "reason": "Assessed the listed price against the draft.",
+            }]}
+            if len(cited) > 1:
+                additional = cited[1]
+                output["checks"].append({
+                    "finding_index": 0, "citation_id": additional["citation_id"],
+                    "status": "unsupported", "quote": None,
+                    "reason": "The additional rule does not address this price.",
+                })
+            return httpx.Response(200, request=httpx.Request("POST", url), json={
+                "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output)}}],
+            })
         supplied = json.loads(prompt.split("Policy: ", 1)[1].split("\nDraft: ", 1)[0])
         passages = supplied["retrieved_passages"]
         price = next(source for source in passages if "BW-05 /" in source["text"])
+        cited.append(price)
+        if expected == "weak":
+            cited.append(next(source for source in passages if source != price))
         assert "approved_facts" not in supplied
         assert all(source["page"] != 6 for source in passages)
         assert "judge walkthrough" not in prompt.casefold()
         output = {"score": 70, "findings": [{
             "category": "unsupported_claim", "severity": "high", "message": "Price differs from the supplied catalogue.",
             "evidence": "INR 1,999", "suggestion": "The demo catalogue lists INR 2,499; confirm the intended price.",
-            "source": f"[{price['citation_id']}]",
+            "source": ", ".join(source["citation_id"] for source in cited),
         }]}
         return httpx.Response(200, request=httpx.Request("POST", url), json={
             "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output)}}],
@@ -157,13 +241,18 @@ def test_contextual_groq_audit_receives_only_retrieved_chunks_and_validates_cita
 
     monkeypatch.setattr(services.httpx, "post", provider)
     result = audit(client, loaded["policy_id"]).json()
-    assert len(calls) == 1
+    assert len(calls) == 2
     assert result["analysis_engine"].startswith("Groq ")
     assert "p. 3" in result["findings"][0]["source"]
     assert "bootwear-brand-guidelines.pdf" in result["findings"][0]["source"]
+    assert result["findings"][0]["verification"]["status"] == expected
+    assert [check["citation_id"] for check in result["findings"][0]["verification"]["citations"]] == [
+        source["citation_id"] for source in cited
+    ]
+    assert result["score"] == 70
 
 
-@pytest.mark.parametrize("citation", ["[S999]", "Invented source.pdf, page 99"])
+@pytest.mark.parametrize("citation", ["[S999]", "S1, S999", "Invented source.pdf, page 99"])
 def test_fabricated_citation_triggers_disclosed_local_fallback(client, monkeypatch, citation):
     loaded = demo(client)
     monkeypatch.setattr(services.settings, "ai_provider", "groq")

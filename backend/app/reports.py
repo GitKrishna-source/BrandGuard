@@ -176,6 +176,13 @@ def render_report_pdf(report: AuditReport) -> bytes:
         story += [p(f"{index}. {label(finding.category)} / {finding.severity.upper()}", heading),
                   p(finding.message), p("Evidence: " + finding.evidence),
                   p("Suggestion: " + finding.suggestion), p("Policy source: " + finding.source, small)]
+        if verification := finding.verification:
+            story.append(p(f"Evidence check / {label(verification.status)}", small))
+            story.append(p(verification.reason, small))
+            for citation in verification.citations:
+                story.append(p(f"[{citation.citation_id}] {label(citation.status)}. {citation.reason}", small))
+                if citation.quote:
+                    story.append(p(f'"{citation.quote}"', small))
     if audit.retrieval_method:
         story += [p("Retrieved guideline evidence", heading), p(audit.retrieval_method, small)]
         if not audit.retrieved_sources:
