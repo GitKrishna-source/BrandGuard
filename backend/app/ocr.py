@@ -72,7 +72,14 @@ def _get_ocr_engine() -> Any:
             try:
                 from rapidocr import RapidOCR
 
-                _OCR_ENGINE = RapidOCR()
+                # Bound ONNX inference memory on small backend instances.
+                _OCR_ENGINE = RapidOCR(params={
+                    "Det.limit_type": "max",
+                    "Det.limit_side_len": 1024,
+                    "Rec.rec_batch_num": 2,
+                    "EngineConfig.onnxruntime.intra_op_num_threads": 1,
+                    "EngineConfig.onnxruntime.inter_op_num_threads": 1,
+                })
             except Exception as error:
                 logger.exception("Failed to initialize RapidOCR")
                 raise OcrEngineUnavailableError("OCR engine could not be initialized on the server.") from error
