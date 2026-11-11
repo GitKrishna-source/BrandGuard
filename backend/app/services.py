@@ -14,6 +14,7 @@ from pypdf import PdfReader
 from .config import get_settings
 from .evidence import ProviderVerification, verify_local_findings, verify_provider_findings
 from .models import BrandPolicy
+from .ocr import extract_guideline_document
 from .policies import BASIC_POLICY_ID
 from .schemas import Finding, RemediationExplanation, RetrievedSource
 
@@ -264,7 +265,7 @@ def _retrieved_context(policy: BrandPolicy, sources: list[RetrievedSource] | Non
         return _policy_prompt(policy)
     return json.dumps({
         "name": policy.name,
-        "mode": "Use retrieved PDF passages as the brand evidence. Do not assume missing facts.",
+        "mode": "Use retrieved guideline passages (PDF and OCR) as the brand evidence. Do not assume missing facts.",
         "retrieved_passages": [source.model_dump() for source in sources],
     }, ensure_ascii=False)
 
@@ -320,7 +321,14 @@ Draft: {content}"""
 def extract_document_text(filename: str, data: bytes) -> str:
     suffix = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
     if suffix == "pdf":
-        return "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(data)).pages)
+        pages_text = [page.extract_text() or "" for page in PdfReader(BytesIO(data)).pages]
+        native = "\n".join(pages_text)
+        if any(char.isalnum() for char in native) and all(
+            any(char.isalnum() for char in page_text) for page_text in pages_text
+        ):
+            return native
+        preview = extract_guideline_document(data, filename)
+        return "\n".join(page.text for page in preview.pages if page.text.strip())
     if suffix == "docx":
         return "\n".join(paragraph.text for paragraph in Document(BytesIO(data)).paragraphs)
     if suffix not in {"txt", "md"}:

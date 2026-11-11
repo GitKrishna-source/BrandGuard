@@ -45,7 +45,10 @@ export interface AuditFinding {
   quote: string;
   explanation: string;
   suggestedFix: string;
+  source?: string;
   verification?: EvidenceVerification | null;
+
+
 }
 
 export interface TextAuditResponse {
@@ -86,6 +89,7 @@ export interface ApiFinding {
   suggestion: string;
   source: string;
   verification?: EvidenceVerification | null;
+
 }
 
 export interface ApiAuditResponse {
@@ -114,6 +118,77 @@ export interface RetrievedSource {
   document_sha256: string;
   relevance: number;
   match_types?: Array<'keyword' | 'semantic'>;
+  extraction_method?: ExtractionMethod | null;
+  ocr_confidence?: number | null;
+}
+
+export type ExtractionMethod = 'native_pdf' | 'ocr';
+export type GuidelineSourceType = 'pdf' | 'jpg' | 'jpeg' | 'png';
+export type GuidelineDetectedKind = 'native_pdf' | 'scanned_pdf' | 'mixed_pdf' | 'image';
+export type ExtractedPageStatus = 'extracted' | 'low_confidence' | 'unreadable' | 'empty' | 'failed';
+export type GuidelineProcessingStage =
+  | 'idle'
+  | 'uploading'
+  | 'detecting'
+  | 'extracting'
+  | 'ocr'
+  | 'completed'
+  | 'failed';
+
+export interface ExtractedPage {
+  page: number;
+  text: string;
+  extraction_method: ExtractionMethod;
+  ocr_confidence?: number | null;
+  low_confidence?: boolean;
+  status?: ExtractedPageStatus;
+  error?: string | null;
+  has_images?: boolean;
+  char_count?: number;
+  retryable?: boolean;
+}
+
+export interface DuplicateDocumentInfo {
+  document_id: string;
+  policy_id: string;
+  brand_name: string;
+  filename: string;
+  sha256: string;
+}
+
+export interface GuidelineExtractionPreview {
+  filename: string;
+  sha256: string;
+  source_type: GuidelineSourceType;
+  detected_kind: GuidelineDetectedKind;
+  page_count: number;
+  usable_page_count: number;
+  failed_page_count: number;
+  low_confidence_page_count: number;
+  native_page_count: number;
+  ocr_page_count: number;
+  extraction_methods: ExtractionMethod[];
+  average_ocr_confidence?: number | null;
+  warnings: string[];
+  duplicate_of?: DuplicateDocumentInfo | null;
+  pages: ExtractedPage[];
+}
+
+export interface ReviewedPageInput {
+  page: number;
+  text: string;
+  extraction_method: ExtractionMethod;
+  ocr_confidence?: number | null;
+}
+
+export interface GuidelineExtractionProgressEvent {
+  stage: Exclude<GuidelineProcessingStage, 'idle'>;
+  progress: number;
+  message: string;
+  page?: number;
+  total_pages?: number;
+  method?: ExtractionMethod;
+  result?: GuidelineExtractionPreview;
 }
 
 export interface GuidelineDocumentResponse {
@@ -126,6 +201,14 @@ export interface GuidelineDocumentResponse {
   sha256: string;
   shared_demo: boolean;
   retrieval_method: string;
+  source_type?: GuidelineSourceType;
+  detected_kind?: GuidelineDetectedKind;
+  extraction_methods?: ExtractionMethod[];
+  native_page_count?: number;
+  ocr_page_count?: number;
+  average_ocr_confidence?: number | null;
+  duplicate_of?: DuplicateDocumentInfo | null;
+  pages?: ExtractedPage[];
 }
 
 export interface GovernanceInsightsResponse {

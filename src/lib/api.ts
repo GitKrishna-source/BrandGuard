@@ -1,4 +1,4 @@
-import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, GovernanceInsightsResponse, GuidelineDocumentResponse, LoginResponse, RemediateResponse, ReviewResponse, Role } from '../types';
+import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, ExtractedPage, GovernanceInsightsResponse, GuidelineDocumentResponse, GuidelineExtractionPreview, GuidelineExtractionProgressEvent, LoginResponse, RemediateResponse, ReviewResponse, ReviewedPageInput, Role } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const TOKEN_KEY = 'brandguard_access_token';
@@ -14,7 +14,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const detail = await response.text();
+    const raw = await response.text();
+    let detail = raw;
+    try {
+      const parsed = JSON.parse(raw) as { detail?: unknown };
+      if (typeof parsed?.detail === 'string') detail = parsed.detail;
+    } catch {
+      // Plain text error body
+    }
     throw new Error(detail || `BrandGuard API request failed (${response.status})`);
   }
 
@@ -118,6 +125,114 @@ export function uploadAudit(file: File, policyId?: string): Promise<ApiAuditResp
 
 export function loadBootwearDemo(signal?: AbortSignal): Promise<GuidelineDocumentResponse> {
   return request('/api/demo/bootwear', { method: 'POST', signal });
+}
+
+export function listGuidelines(): Promise<GuidelineDocumentResponse[]> {
+  return request('/api/guidelines');
+}
+
+export async function extractGuidelineDocument(
+  file: File,
+  onProgress?: (event: GuidelineExtractionProgressEvent) => void,
+): Promise<GuidelineExtractionPreview> {
+  onProgress?.({ stage: 'uploading', progress: 5, message: `Uploading ${file.name}…` });
+  const form = new FormData();
+  form.append('file', file);
+  const headers = new Headers();
+  const token = window.localStorage.getItem(TOKEN_KEY);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_BASE_URL}/api/guidelines/extract?stream=true`, {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+
+  if (!response.ok) {
+    const raw = await response.text();
+    let detail = raw;
+    try {
+      const parsed = JSON.parse(raw) as { detail?: unknown };
+      if (typeof parsed?.detail === 'string') detail = parsed.detail;
+    } catch {
+      // keep raw text
+    }
+    throw new Error(detail || `Unable to extract document (${response.status})`);
+  }
+
+  if (!response.body) {
+    const fallback = (await response.json()) as GuidelineExtractionPreview;
+    onProgress?.({ stage: 'completed', progress: 100, message: 'Extraction completed.', result: fallback });
+    return fallback;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let completedPreview: GuidelineExtractionPreview | null = null;
+
+  const processLine = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const event = JSON.parse(trimmed) as GuidelineExtractionProgressEvent;
+    onProgress?.(event);
+    if (event.stage === 'failed') {
+      throw new Error(event.message || 'Document extraction failed.');
+    }
+    if (event.stage === 'completed' && event.result) {
+      completedPreview = event.result;
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newlineIndex = buffer.indexOf('\n');
+    while (newlineIndex !== -1) {
+      const line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+      processLine(line);
+      newlineIndex = buffer.indexOf('\n');
+    }
+  }
+  buffer += decoder.decode();
+  if (buffer.trim()) processLine(buffer);
+
+  if (!completedPreview) {
+    throw new Error('Extraction did not return page preview data.');
+  }
+  return completedPreview;
+}
+
+export async function retryGuidelinePageOcr(
+  file: File,
+  page: number,
+  enhanced = true,
+): Promise<ExtractedPage> {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('page', String(page));
+  form.append('enhanced', enhanced ? 'true' : 'false');
+  const response = await request<{ page_data: ExtractedPage }>('/api/guidelines/extract-page', {
+    method: 'POST',
+    body: form,
+  });
+  return response.page_data;
+}
+
+export function importGuidelineDocument(
+  brandName: string,
+  file: File,
+  reviewedPages?: ReviewedPageInput[],
+): Promise<GuidelineDocumentResponse> {
+  const form = new FormData();
+  form.append('brand_name', brandName);
+  form.append('file', file);
+  if (reviewedPages && reviewedPages.length > 0) {
+    form.append('reviewed_pages_json', JSON.stringify(reviewedPages));
+  }
+  return request('/api/guidelines/import', { method: 'POST', body: form });
 }
 
 export function importGuidelinePdf(brandName: string, file: File): Promise<GuidelineDocumentResponse> {

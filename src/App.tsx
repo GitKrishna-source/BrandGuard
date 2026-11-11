@@ -192,7 +192,7 @@ export default function App() {
         onContextChange={() => { setLatestAudit(null); setExportAuditId(undefined); }}
         isOpen={isAuditModalOpen && isAuthenticated}
         onClose={() => setIsAuditModalOpen(false)}
-        initialText={sampleAudit ? BOOTWEAR_SAMPLE_DRAFT : auditQuery || undefined}
+        initialText={sampleAudit?.id === 'bootwear-guidelines-v1' ? BOOTWEAR_SAMPLE_DRAFT : auditQuery || undefined}
         initialGuideline={sampleAudit ?? undefined}
         onAuditComplete={setLatestAudit}
         onExportAudit={handleExportAudit}
@@ -200,6 +200,19 @@ export default function App() {
 
       <BrandVaultModal
         onOpenAudit={() => { setIsVaultModalOpen(false); openAudit(); }}
+        onUseGuideline={(doc) => {
+          setSampleAudit(doc);
+          setAuditLaunch((launch) => launch + 1);
+          setLatestAudit(null);
+          setExportAuditId(undefined);
+          setIsVaultModalOpen(false);
+          setIsAuditModalOpen(true);
+        }}
+        onSelectGuideline={(doc) => { setSampleAudit(doc); setAuditLaunch((launch) => launch + 1); }}
+        onOpenSignIn={() => { setIsVaultModalOpen(false); setIsSignInModalOpen(true); }}
+        currentRole={currentRole}
+        isAuthenticated={isAuthenticated}
+        activeGuideline={sampleAudit}
         isOpen={isVaultModalOpen}
         onClose={() => setIsVaultModalOpen(false)}
       />

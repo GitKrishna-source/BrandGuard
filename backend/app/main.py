@@ -1,9 +1,12 @@
+import hashlib
+import json
 from collections import Counter, defaultdict
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,6 +14,7 @@ from .auth import authenticate, create_access_token, get_current_user, require_r
 from .config import get_settings
 from .db import Base, engine, get_db
 from .models import Audit, BrandPolicy, GuidelineDocument, Review, Revision
+from .ocr import detect_source_type, extract_guideline_document, extract_single_page, iter_extract_guideline_document
 from .policies import BASIC_POLICY_ID, get_basic_policy
 from .remediation import build_remediation_edits
 from .reports import AuditReport, build_report, capture_policy, render_report_pdf
@@ -21,6 +25,9 @@ from .retrieval import (
     bootwear_document,
     check_document_access,
     document_info,
+    find_duplicate_document,
+    import_guidelines,
+    list_accessible_documents,
     import_guidelines,
 )
 from .schemas import (
@@ -34,6 +41,9 @@ from .schemas import (
     DemoLoginRequest,
     GovernanceInsights,
     GuidelineDocumentResponse,
+    GuidelineExtractionPreview,
+    GuidelinePageRetryResponse,
+    ReviewedPageInput,
     HealthResponse,
     LoginRequest,
     LoginResponse,
@@ -136,26 +146,135 @@ def download_bootwear_guidelines(_: dict[str, str] = Depends(get_current_user)):
     })
 
 
-@app.post("/api/guidelines/import", response_model=GuidelineDocumentResponse, status_code=201)
-def import_guideline_pdf(
-    brand_name: str = Form(..., min_length=1, max_length=160), file: UploadFile = File(...),
-    db: Session = Depends(get_db), user: dict[str, str] = Depends(require_roles("manager", "legal")),
+@app.get("/api/guidelines", response_model=list[GuidelineDocumentResponse])
+def list_guidelines(
+    db: Session = Depends(get_db),
+    user: dict[str, str] = Depends(get_current_user),
 ):
+    return [document_info(document, db) for document in list_accessible_documents(db, user)]
+
+
+@app.post("/api/guidelines/extract", response_model=GuidelineExtractionPreview)
+def extract_guideline_preview(
+    file: UploadFile = File(...),
+    stream: bool = Query(default=False),
+    db: Session = Depends(get_db),
+    user: dict[str, str] = Depends(require_roles("manager", "legal")),
+):
+    filename = file.filename or "guideline"
     data = file.file.read(settings.max_upload_bytes + 1)
+    if not data:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
     if len(data) > settings.max_upload_bytes:
-        raise HTTPException(status_code=413, detail="Guideline PDF exceeds the upload limit")
-    if not (file.filename or "").lower().endswith(".pdf") or not data.startswith(b"%PDF-"):
-        raise HTTPException(status_code=422, detail="Import a text-based PDF guideline document")
-    name = brand_name.strip()
-    if not name:
-        raise HTTPException(status_code=422, detail="Enter a brand name")
+        raise HTTPException(status_code=413, detail="Guideline file exceeds the 10 MB upload limit")
     try:
-        document = import_guidelines(db, data, file.filename, name, user["username"])
+        detect_source_type(filename, data)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    duplicate_of = find_duplicate_document(db, hashlib.sha256(data).hexdigest(), user)
+
+    if stream:
+        def event_stream():
+            try:
+                for event in iter_extract_guideline_document(data, filename, duplicate_of=duplicate_of):
+                    yield json.dumps(event) + "\n"
+            except Exception as error:
+                yield json.dumps({"stage": "failed", "progress": 100, "message": str(error)}) + "\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-store"},
+        )
+
+    try:
+        return extract_guideline_document(data, filename, duplicate_of=duplicate_of)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except Exception as error:
-        raise HTTPException(status_code=422, detail="Unable to extract guideline PDF text") from error
+        raise HTTPException(status_code=422, detail="Unable to process uploaded guideline document") from error
+
+
+@app.post("/api/guidelines/extract-page", response_model=GuidelinePageRetryResponse)
+def retry_guideline_page_ocr(
+    file: UploadFile = File(...),
+    page: int = Form(..., ge=1, le=100),
+    enhanced: bool = Form(default=True),
+    _: dict[str, str] = Depends(require_roles("manager", "legal")),
+):
+    filename = file.filename or "guideline.pdf"
+    data = file.file.read(settings.max_upload_bytes + 1)
+    if not data:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail="Guideline file exceeds the 10 MB upload limit")
+    try:
+        page_data = extract_single_page(data, filename, page, enhanced=enhanced)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=422, detail=f"Failed to retry OCR on page {page}") from error
+    clean_name = filename.replace("\\", "/").rsplit("/", 1)[-1][:240]
+    return GuidelinePageRetryResponse(filename=clean_name, page=page, page_data=page_data)
+
+
+def _guideline_media_type_and_ext(filename: str) -> tuple[str, str]:
+    suffix = (filename or "").lower().rsplit(".", 1)[-1] if "." in (filename or "") else "pdf"
+    if suffix in {"jpg", "jpeg"}:
+        return "image/jpeg", suffix
+    if suffix == "png":
+        return "image/png", "png"
+    return "application/pdf", "pdf"
+
+
+@app.post("/api/guidelines/import", response_model=GuidelineDocumentResponse, status_code=201)
+def import_guideline_pdf(
+    brand_name: str = Form(..., min_length=1, max_length=160),
+    file: UploadFile = File(...),
+    reviewed_pages_json: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    user: dict[str, str] = Depends(require_roles("manager", "legal")),
+):
+    data = file.file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail="Guideline file exceeds the upload limit")
+    filename = file.filename or "guideline"
+    try:
+        detect_source_type(filename, data)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    name = brand_name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Enter a brand name")
+    reviewed_pages = None
+    if reviewed_pages_json and reviewed_pages_json.strip():
+        try:
+            reviewed_pages = TypeAdapter(list[ReviewedPageInput]).validate_json(reviewed_pages_json)
+        except ValidationError as error:
+            raise HTTPException(status_code=422, detail="Invalid reviewed pages payload") from error
+    prior_duplicate = find_duplicate_document(db, hashlib.sha256(data).hexdigest(), user)
+    try:
+        document = import_guidelines(
+            db, data, filename, name, user["username"], reviewed_pages=reviewed_pages
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=422, detail="Unable to extract guideline document text") from error
     db.commit()
+    return document_info(document, db, duplicate_of=prior_duplicate)
+
+
+@app.get("/api/guidelines/{document_id}", response_model=GuidelineDocumentResponse)
+def get_guideline_source(
+    document_id: str,
+    db: Session = Depends(get_db),
+    user: dict[str, str] = Depends(get_current_user),
+):
+    document = db.get(GuidelineDocument, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Guideline document not found")
+    check_document_access(document, user)
     return document_info(document, db)
 
 
@@ -166,8 +285,9 @@ def download_guideline_source(document_id: str, db: Session = Depends(get_db),
     if document is None:
         raise HTTPException(status_code=404, detail="Guideline document not found")
     check_document_access(document, user)
-    return Response(document.pdf_data, media_type="application/pdf", headers={
-        "Content-Disposition": f'attachment; filename="Guidelines_{document.id}.pdf"',
+    media_type, ext = _guideline_media_type_and_ext(document.filename)
+    return Response(document.pdf_data, media_type=media_type, headers={
+        "Content-Disposition": f'attachment; filename="Guidelines_{document.id}.{ext}"',
         "Cache-Control": "no-store",
     })
 
