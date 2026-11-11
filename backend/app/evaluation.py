@@ -176,7 +176,7 @@ def evaluate(cases_path: Path = EVAL_DIR / "audit_cases.json", engine: str = "lo
         services.settings.ai_provider = original_provider
     return {
         "report_version": 1, "generated_at": datetime.now(UTC).isoformat(),
-        "engine_mode": engine, "dataset_sha256": hashlib.sha256(raw).hexdigest(),
+        "engine_mode": engine, "dataset_sha256": hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest(),
         "source_sha256": document.sha256,
         "provider_fallback_cases": sum(row["analysis_engine"].startswith(services.LOCAL_ENGINE)
                                        for row in results) if engine == "configured" else 0,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import re
 import threading
 from collections.abc import Iterator
@@ -32,6 +33,10 @@ _OCR_LOCK = threading.Lock()
 _OCR_ENGINE: Any | None = None
 
 
+class OcrEngineUnavailableError(RuntimeError):
+    """Raised when the OCR engine or its runtime dependencies cannot be initialized."""
+
+
 @dataclass
 class OcrPassResult:
     text: str
@@ -58,6 +63,13 @@ def _alnum_count(text: str) -> int:
     return sum(1 for char in text if char.isalnum())
 
 
+def _configure_cls_flag(engine: Any, enabled: bool) -> None:
+    if hasattr(engine, "use_angle_cls"):
+        engine.use_angle_cls = enabled
+    if hasattr(engine, "use_cls"):
+        engine.use_cls = enabled
+
+
 def _get_ocr_engine() -> Any:
     global _OCR_ENGINE
     with _OCR_LOCK:
@@ -66,9 +78,9 @@ def _get_ocr_engine() -> Any:
                 from rapidocr_onnxruntime import RapidOCR
 
                 _OCR_ENGINE = RapidOCR()
-                _OCR_ENGINE.use_angle_cls = False
+                _configure_cls_flag(_OCR_ENGINE, False)
             except Exception as error:
-                raise RuntimeError("OCR engine could not be initialized on the server.") from error
+                raise OcrEngineUnavailableError("OCR engine could not be initialized on the server.") from error
         return _OCR_ENGINE
 
 
@@ -228,29 +240,48 @@ def _parse_ocr_boxes(raw_result: Any) -> OcrPassResult:
     return OcrPassResult(text=text, confidence=avg_conf, line_count=len(rendered_lines))
 
 
-def _invoke_ocr(engine: Any, rgb_array: Any, *, use_angle_cls: bool = False) -> OcrPassResult:
+def _pil_to_bgr_array(np_module: Any, image: Image.Image) -> Any:
+    rgb_array = np_module.asarray(image, dtype=np_module.uint8)
+    # RapidOCR's LoadImage treats ndarray inputs as OpenCV BGR rather than RGB.
+    return np_module.ascontiguousarray(rgb_array[..., ::-1])
+
+
+def _invoke_ocr(engine: Any, image_array: Any, *, use_angle_cls: bool = False) -> OcrPassResult:
     with _OCR_LOCK:
-        engine.use_angle_cls = use_angle_cls
+        prev_angle_cls = getattr(engine, "use_angle_cls", None)
+        prev_cls = getattr(engine, "use_cls", None)
+        _configure_cls_flag(engine, use_angle_cls)
         try:
-            raw_result, _ = engine(rgb_array)
+            try:
+                params = inspect.signature(engine).parameters
+            except (TypeError, ValueError):
+                params = {}
+            if "use_cls" in params:
+                raw_result, _ = engine(image_array, use_cls=use_angle_cls)
+            else:
+                raw_result, _ = engine(image_array)
         finally:
-            engine.use_angle_cls = False
+            if hasattr(engine, "use_angle_cls") and prev_angle_cls is not None:
+                engine.use_angle_cls = prev_angle_cls
+            if hasattr(engine, "use_cls") and prev_cls is not None:
+                engine.use_cls = prev_cls
     return _parse_ocr_boxes(raw_result)
 
 
 def run_ocr_on_pil(image: Image.Image, *, enhanced: bool = False) -> OcrPassResult:
-    import numpy as np
+    try:
+        import numpy as np
+    except Exception as error:
+        raise OcrEngineUnavailableError("OCR numerical dependency (numpy) is not installed on the server.") from error
 
     engine = _get_ocr_engine()
     prepared = _prepare_pil_image(image, enhanced=enhanced)
-    rgb_array = np.asarray(prepared, dtype=np.uint8)
-    primary = _invoke_ocr(engine, rgb_array, use_angle_cls=False)
+    primary = _invoke_ocr(engine, _pil_to_bgr_array(np, prepared), use_angle_cls=False)
 
     # Automatically try an enhanced + orientation-aware pass when upright OCR finds nothing or reads poorly.
     if _alnum_count(primary.text) == 0 or (primary.confidence is not None and primary.confidence < 0.55):
         enhanced_img = _prepare_pil_image(image, enhanced=True) if not enhanced else prepared
-        enhanced_array = np.asarray(enhanced_img, dtype=np.uint8)
-        secondary = _invoke_ocr(engine, enhanced_array, use_angle_cls=True)
+        secondary = _invoke_ocr(engine, _pil_to_bgr_array(np, enhanced_img), use_angle_cls=True)
         if _pick_better_ocr_result(primary, secondary) is secondary:
             return secondary
     return primary
@@ -407,6 +438,8 @@ def _extract_pdf_page(
     try:
         rendered = _render_pdfium_page(pdfium_doc, page_number - 1, dpi=dpi)
         ocr_res = run_ocr_on_pil(rendered, enhanced=enhanced)
+    except OcrEngineUnavailableError:
+        raise
     except Exception as error:
         if _alnum_count(native_text) >= NO_IMAGE_NATIVE_ALNUM_THRESHOLD:
             return ExtractedPage(
@@ -573,6 +606,8 @@ def iter_extract_guideline_document(
             with Image.open(BytesIO(data)) as img:
                 ocr_res = run_ocr_on_pil(img, enhanced=False)
             page = _build_ocr_page(1, ocr_res, has_images=True)
+        except OcrEngineUnavailableError:
+            raise
         except Exception as error:
             page = ExtractedPage(
                 page=1,

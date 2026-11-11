@@ -526,3 +526,75 @@ def test_error_handling_unreadable_page_retry_duplicate_review_and_rbac(client):
         files={"file": ("blurry.png", blurry_png, "image/png")},
     )
     assert blurry_res.status_code == 200
+
+
+def test_ocr_engine_unavailable_fails_loudly_instead_of_zero_ocr_pages(client, monkeypatch):
+    from app import ocr
+
+    def broken_engine():
+        raise ocr.OcrEngineUnavailableError("OCR engine could not be initialized on the server.")
+
+    monkeypatch.setattr(ocr, "_get_ocr_engine", broken_engine)
+    scanned_pdf = _scanned_or_mixed_pdf([
+        {"kind": "scan", "lines": ["Brand policy rule."]},
+    ])
+
+    sync_res = client.post(
+        "/api/guidelines/extract",
+        headers=auth("manager"),
+        files={"file": ("Scanned.pdf", scanned_pdf, "application/pdf")},
+    )
+    assert sync_res.status_code == 503
+
+    stream_res = client.post(
+        "/api/guidelines/extract?stream=true",
+        headers=auth("manager"),
+        files={"file": ("Scanned.pdf", scanned_pdf, "application/pdf")},
+    )
+    assert stream_res.status_code == 200
+    events = [json.loads(line) for line in stream_res.text.splitlines() if line.strip()]
+    assert events[-1]["stage"] == "failed"
+
+
+def test_invoke_ocr_supports_rapidocr_12_and_14_cls_interfaces_and_bgr_channels():
+    from app import ocr
+
+    calls_14: list[tuple[bool, tuple[int, int, int], tuple[int, int, int]]] = []
+
+    class RapidOcr14Engine:
+        def __init__(self):
+            self.use_cls = True
+
+        def __call__(self, img_content, use_cls=None):
+            calls_14.append((bool(use_cls), tuple(img_content[0, 0].tolist()), img_content.shape))
+            return [[[[0, 0], [10, 0], [10, 10], [0, 10]], "Policy line", "0.95"]], [0.01]
+
+    calls_12: list[tuple[bool, tuple[int, int, int]]] = []
+
+    class RapidOcr12Engine:
+        def __init__(self):
+            self.use_angle_cls = False
+
+        def __call__(self, img_content):
+            calls_12.append((bool(self.use_angle_cls), tuple(img_content[0, 0].tolist())))
+            return [[[[0, 0], [10, 0], [10, 10], [0, 10]], "Legacy line", "0.92"]], [0.01]
+
+    import numpy as np
+
+    # Red RGB pixel [200, 10, 20] converted to BGR becomes [20, 10, 200]
+    rgb_img = Image.new("RGB", (12, 12), (200, 10, 20))
+    bgr = ocr._pil_to_bgr_array(np, rgb_img)
+
+    engine_14 = RapidOcr14Engine()
+    res_14 = ocr._invoke_ocr(engine_14, bgr, use_angle_cls=False)
+    assert res_14.text == "Policy line"
+    assert calls_14[0][0] is False
+    assert calls_14[0][1] == (20, 10, 200)
+    assert engine_14.use_cls is True
+
+    engine_12 = RapidOcr12Engine()
+    res_12 = ocr._invoke_ocr(engine_12, bgr, use_angle_cls=True)
+    assert res_12.text == "Legacy line"
+    assert calls_12[0][0] is True
+    assert calls_12[0][1] == (20, 10, 200)
+    assert engine_12.use_angle_cls is False

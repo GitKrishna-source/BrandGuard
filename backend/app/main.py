@@ -14,7 +14,13 @@ from .auth import authenticate, create_access_token, get_current_user, require_r
 from .config import get_settings
 from .db import Base, engine, get_db
 from .models import Audit, BrandPolicy, GuidelineDocument, Review, Revision
-from .ocr import detect_source_type, extract_guideline_document, extract_single_page, iter_extract_guideline_document
+from .ocr import (
+    OcrEngineUnavailableError,
+    detect_source_type,
+    extract_guideline_document,
+    extract_single_page,
+    iter_extract_guideline_document,
+)
 from .policies import BASIC_POLICY_ID, get_basic_policy
 from .remediation import build_remediation_edits
 from .reports import AuditReport, build_report, capture_policy, render_report_pdf
@@ -189,6 +195,8 @@ def extract_guideline_preview(
 
     try:
         return extract_guideline_document(data, filename, duplicate_of=duplicate_of)
+    except OcrEngineUnavailableError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except Exception as error:
@@ -210,6 +218,8 @@ def retry_guideline_page_ocr(
         raise HTTPException(status_code=413, detail="Guideline file exceeds the 10 MB upload limit")
     try:
         page_data = extract_single_page(data, filename, page, enhanced=enhanced)
+    except OcrEngineUnavailableError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except Exception as error:
@@ -260,6 +270,8 @@ def import_guideline_pdf(
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except Exception as error:
+        if isinstance(error, OcrEngineUnavailableError):
+            raise HTTPException(status_code=503, detail=str(error)) from error
         raise HTTPException(status_code=422, detail="Unable to extract guideline document text") from error
     db.commit()
     return document_info(document, db, duplicate_of=prior_duplicate)
@@ -406,6 +418,8 @@ def create_upload_audit(
         sources = audit_sources(db, policy.id, user, query)
         score, findings, engine, preview = audit_uploaded_file_with_provider(
             file.filename or "upload", file.content_type, data, policy, sources)
+    except OcrEngineUnavailableError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
     except HTTPException:
         raise
     except Exception as error:
