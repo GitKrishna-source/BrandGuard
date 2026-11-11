@@ -294,3 +294,51 @@ export interface RemediationEdit {
   source: string | null;
 }
 
+export interface WordPressConfig {
+  site_url: string;
+  username: string;
+  app_password: string;
+}
+
+export interface WordPressConnectResponse {
+  success: boolean;
+  site_url: string;
+  username: string;
+  site_name: string | null;
+  user_display_name: string | null;
+}
+
+export interface WordPressDraft {
+  id: number;
+  title: string;
+  content: string;
+  excerpt: string;
+  date_modified: string;
+  status: string;
+  link: string | null;
+}
+
+export interface WordPressDraftsResponse {
+  drafts: WordPressDraft[];
+}
+
+export interface WordPressSyncRequest extends WordPressConfig {
+  post_id: number;
+  content: string;
+  title?: string;
+  audit_id?: string;
+  audit_score?: number;
+  status?: string;
+}
+
+export interface WordPressSyncResponse {
+  success: boolean;
+  post_id: number;
+  title: string;
+  status: string;
+  audit_reference: string;
+  link: string | null;
+  message: string;
+}
+
+

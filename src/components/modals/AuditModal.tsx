@@ -12,15 +12,17 @@ import {
   Layers,
   ArrowRight,
   Wand2,
-  RotateCcw
+  RotateCcw,
+  Globe
 } from 'lucide-react';
 import type { ChangeEvent } from 'react';
-import type { ApiAuditResponse, GuidelineDocumentResponse, ImageAuditResponse, ModalProps, RemediateResponse, RetrievedSource, Role, TextAuditResponse } from '../../types';
+import type { ApiAuditResponse, GuidelineDocumentResponse, ImageAuditResponse, ModalProps, RemediateResponse, RetrievedSource, Role, TextAuditResponse, WordPressConfig, WordPressDraft } from '../../types';
 import GuidelineSourcePanel from '../GuidelineSourcePanel';
 import FindingEvidence from '../FindingEvidence';
 import RemediationReview from '../RemediationReview';
+import WordPressModal from './WordPressModal';
 import { validateRemediationProposal } from '../../lib/remediation';
-import { createRevision, createTextAudit, getAuditReport, remediateContent, uploadAudit } from '../../lib/api';
+import { createRevision, createTextAudit, getAuditReport, remediateContent, syncDraftToWordPress, uploadAudit } from '../../lib/api';
 
 interface AuditModalProps extends ModalProps {
   currentRole: Role;
@@ -78,6 +80,11 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
   const [remediationSummary, setRemediationSummary] = useState<string | null>(null);
   const [proposal, setProposal] = useState<RemediateResponse | null>(null);
   const [auditedText, setAuditedText] = useState<string | null>(null);
+  const [isWpModalOpen, setIsWpModalOpen] = useState(false);
+  const [linkedWpDraft, setLinkedWpDraft] = useState<WordPressDraft | null>(null);
+  const [wpConfig, setWpConfig] = useState<WordPressConfig | null>(null);
+  const [isSyncingWp, setIsSyncingWp] = useState(false);
+  const [wpSyncMessage, setWpSyncMessage] = useState<{ text: string; link?: string | null } | null>(null);
   const requestVersion = useRef(0);
   const openRef = useRef(isOpen);
   openRef.current = isOpen;
@@ -106,6 +113,39 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
   const changeTab = (tab: string) => {
     discardProposal();
     setActiveTab(tab);
+  };
+
+  const handleSelectWpDraft = (draft: WordPressDraft, config: WordPressConfig) => {
+    setLinkedWpDraft(draft);
+    setWpConfig(config);
+    setWpSyncMessage(null);
+    const cleanContent = draft.content.replace(/<!-- \/?wp:[^>]* -->/g, '').trim();
+    changeText(cleanContent || draft.title);
+  };
+
+  const handleSyncToWordPress = async () => {
+    if (!linkedWpDraft || !wpConfig || !customText.trim() || busy) return;
+    setIsSyncingWp(true);
+    setWpSyncMessage(null);
+    setApiError(null);
+    try {
+      const res = await syncDraftToWordPress({
+        ...wpConfig,
+        post_id: linkedWpDraft.id,
+        content: customText,
+        title: linkedWpDraft.title,
+        audit_id: currentAuditId || undefined,
+        audit_score: auditResult?.score,
+      });
+      setWpSyncMessage({
+        text: `Draft #${res.post_id} updated with audit reference ${res.audit_reference}!`,
+        link: res.link,
+      });
+    } catch (err: unknown) {
+      setApiError(err instanceof Error ? err.message : 'Failed to sync draft back to WordPress.');
+    } finally {
+      setIsSyncingWp(false);
+    }
   };
 
   // Image tab states
@@ -407,7 +447,17 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 <label htmlFor="audit-draft" className="text-xs font-sans text-secondary  ">
                   Draft Content Input:
                 </label>
-                <div className="flex flex-wrap justify-end gap-x-2 gap-y-1">
+                <div className="flex flex-wrap justify-end items-center gap-x-2 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsWpModalOpen(true)}
+                    disabled={busy}
+                    className="text-[11px] font-sans text-sky-400 hover:text-sky-300 inline-flex items-center gap-1 font-medium bg-sky-500/10 hover:bg-sky-500/20 px-2 py-0.5 rounded border border-sky-500/30 transition-colors"
+                  >
+                    <Globe className="w-3 h-3" />
+                    Import WordPress Draft
+                  </button>
+                  <span className="text-muted">•</span>
                   <button
                     onClick={() => changeText(guideline?.shared_demo ? 'Bootwear Everyday is an everyday walking shoe. Bootwear Everyday costs INR 2,499. Bootwear accepts unworn shoes within 14 days of delivery.' : 'Contact our team to learn more about our services.')}
                     disabled={busy}
@@ -435,6 +485,56 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 </div>
               </div>
 
+              {linkedWpDraft && (
+                <div className="flex items-center justify-between p-2.5 px-3 mb-2 rounded-xl bg-sky-500/10 border border-sky-500/25 text-xs text-ink animate-fade-in">
+                  <div className="flex items-center gap-2 truncate">
+                    <Globe className="w-4 h-4 text-sky-400 shrink-0" />
+                    <span className="truncate">
+                      Linked WordPress Draft: <strong>#{linkedWpDraft.id} — {linkedWpDraft.title || 'Untitled Draft'}</strong>
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono shrink-0">
+                      Draft
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5 shrink-0 ml-2">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsWpModalOpen(true)} 
+                      className="text-[11px] text-sky-400 hover:text-sky-300 hover:underline"
+                    >
+                      Change
+                    </button>
+                    <span className="text-muted">•</span>
+                    <button 
+                      type="button" 
+                      onClick={() => { setLinkedWpDraft(null); setWpSyncMessage(null); }} 
+                      className="text-[11px] text-red-400 hover:text-red-300 hover:underline"
+                    >
+                      Unlink
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {wpSyncMessage && (
+                <div className="flex items-center justify-between p-2.5 px-3 mb-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-400 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{wpSyncMessage.text}</span>
+                  </div>
+                  {wpSyncMessage.link && (
+                    <a 
+                      href={wpSyncMessage.link} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="text-[11px] text-emerald-300 hover:underline inline-flex items-center gap-1 font-medium"
+                    >
+                      Preview in WordPress <ArrowRight className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )}
+
               <textarea
                 id="audit-draft"
                 value={customText}
@@ -446,19 +546,34 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
               />
             </div>
 
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap justify-between items-center gap-3">
               <span className="text-[11px] font-sans text-muted">
                 {guideline ? 'Checks content against retrieved PDF passages and general content standards' : 'Checks clarity, tone, grammar, and unsupported claims'}
               </span>
 
-              <button
-                onClick={runTextAudit}
-                disabled={busy || !customText.trim() || proposal !== null}
-                className="px-5 py-2.5 bg-accent hover:bg-accent text-dark font-bold text-xs rounded-xl  transition-colors flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>{isAuditing ? 'Analyzing Content...' : currentAuditId ? 'Save Revision & Re-audit' : 'Run Audit'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {linkedWpDraft && wpConfig && (
+                  <button
+                    type="button"
+                    onClick={handleSyncToWordPress}
+                    disabled={busy || isSyncingWp || !customText.trim()}
+                    className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+                    title="Send audited revision back to WordPress draft"
+                  >
+                    <Globe className={`w-3.5 h-3.5 ${isSyncingWp ? 'animate-spin' : ''}`} />
+                    <span>{isSyncingWp ? 'Syncing to WP...' : 'Sync to WordPress Draft'}</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={runTextAudit}
+                  disabled={busy || !customText.trim() || proposal !== null}
+                  className="px-5 py-2.5 bg-accent hover:bg-accent text-dark font-bold text-xs rounded-xl transition-colors flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isAuditing ? 'Analyzing Content...' : currentAuditId ? 'Save Revision & Re-audit' : 'Run Audit'}</span>
+                </button>
+              </div>
             </div>
 
             {apiError && (
@@ -744,6 +859,14 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           </button>
         </div>
       </div>
+
+      {/* WordPress Draft Selector & Connect Modal */}
+      <WordPressModal
+        isOpen={isWpModalOpen}
+        onClose={() => setIsWpModalOpen(false)}
+        onSelectDraft={handleSelectWpDraft}
+        activeDraftId={linkedWpDraft?.id}
+      />
     </div>
   );
 }

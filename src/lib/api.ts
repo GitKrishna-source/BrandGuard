@@ -1,4 +1,4 @@
-import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, ExtractedPage, GovernanceInsightsResponse, GuidelineDocumentResponse, GuidelineExtractionPreview, GuidelineExtractionProgressEvent, LoginResponse, RemediateResponse, ReviewResponse, ReviewedPageInput, Role } from '../types';
+import type { ApiAuditReport, ApiAuditResponse, AuthUser, BrandPolicyResponse, ExtractedPage, GovernanceInsightsResponse, GuidelineDocumentResponse, GuidelineExtractionPreview, GuidelineExtractionProgressEvent, LoginResponse, RemediateResponse, ReviewResponse, ReviewedPageInput, Role, WordPressConfig, WordPressConnectResponse, WordPressDraftsResponse, WordPressSyncRequest, WordPressSyncResponse } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const TOKEN_KEY = 'brandguard_access_token';
@@ -270,4 +270,26 @@ export function remediateContent(content: string, policyId?: string): Promise<Re
     body: JSON.stringify({ content, policy_id: policyId }),
   });
 }
+
+export function connectWordPress(config: WordPressConfig): Promise<WordPressConnectResponse> {
+  return request<WordPressConnectResponse>('/api/wordpress/connect', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+}
+
+export function getWordPressDrafts(config: WordPressConfig, perPage: number = 20): Promise<WordPressDraftsResponse> {
+  return request<WordPressDraftsResponse>(`/api/wordpress/drafts?per_page=${perPage}`, {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+}
+
+export function syncDraftToWordPress(payload: WordPressSyncRequest): Promise<WordPressSyncResponse> {
+  return request<WordPressSyncResponse>('/api/wordpress/sync-back', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 

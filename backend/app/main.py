@@ -60,6 +60,16 @@ from .schemas import (
     RevisionCreate,
     RevisionResponse,
     ViolationInsight,
+    WordPressConnectRequest,
+    WordPressConnectResponse,
+    WordPressDraftsResponse,
+    WordPressSyncRequest,
+    WordPressSyncResponse,
+)
+from .wordpress import (
+    fetch_wordpress_drafts,
+    sync_draft_to_wordpress,
+    verify_wordpress_connection,
 )
 from .services import (
     audit_data_handling,
@@ -623,3 +633,38 @@ def accessible_audit(db: Session, audit_id: str, user: dict[str, str]) -> Audit:
     if not audit or (user["role"] == "creator" and audit.response.get("owner") != user["username"]):
         raise HTTPException(status_code=404, detail="Audit not found")
     return audit
+
+
+@app.post("/api/wordpress/connect", response_model=WordPressConnectResponse)
+def connect_wordpress(
+    payload: WordPressConnectRequest,
+    user: dict[str, str] = Depends(get_current_user),
+) -> WordPressConnectResponse:
+    try:
+        return verify_wordpress_connection(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/wordpress/drafts", response_model=WordPressDraftsResponse)
+def get_wordpress_drafts(
+    payload: WordPressConnectRequest,
+    per_page: int = Query(default=20, ge=1, le=50),
+    user: dict[str, str] = Depends(get_current_user),
+) -> WordPressDraftsResponse:
+    try:
+        return fetch_wordpress_drafts(payload, per_page=per_page)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/wordpress/sync-back", response_model=WordPressSyncResponse)
+def sync_wordpress_draft(
+    payload: WordPressSyncRequest,
+    user: dict[str, str] = Depends(get_current_user),
+) -> WordPressSyncResponse:
+    try:
+        return sync_draft_to_wordpress(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+

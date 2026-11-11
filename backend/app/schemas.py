@@ -263,3 +263,54 @@ class RemediateResponse(BaseModel):
     analysis_engine: str
     edits: list[RemediationEdit] = Field(default_factory=list)
     data_handling: str = ""
+
+
+class WordPressConnectRequest(BaseModel):
+    site_url: str = Field(min_length=1, max_length=500)
+    username: str = Field(min_length=1, max_length=120)
+    app_password: str = Field(min_length=1, max_length=120)
+
+
+class WordPressConnectResponse(BaseModel):
+    success: bool
+    site_url: str
+    username: str
+    site_name: str | None = None
+    user_display_name: str | None = None
+
+
+class WordPressDraft(BaseModel):
+    id: int
+    title: str
+    content: str
+    excerpt: str = ""
+    date_modified: str
+    status: str = "draft"
+    link: str | None = None
+
+
+class WordPressDraftsResponse(BaseModel):
+    drafts: list[WordPressDraft] = Field(default_factory=list)
+
+
+class WordPressSyncRequest(BaseModel):
+    site_url: str = Field(min_length=1, max_length=500)
+    username: str = Field(min_length=1, max_length=120)
+    app_password: str = Field(min_length=1, max_length=120)
+    post_id: int
+    content: str = Field(min_length=1)
+    title: str | None = None
+    audit_id: str | None = None
+    audit_score: int | None = None
+    status: str = "draft"
+
+
+class WordPressSyncResponse(BaseModel):
+    success: bool
+    post_id: int
+    title: str
+    status: str
+    audit_reference: str
+    link: str | None = None
+    message: str
+
