@@ -6,8 +6,8 @@ The frontend starts general content audits with no brand setup or policy selecti
 Omit `policy_id` on text or upload requests to use neutral clarity, tone, grammar,
 accessibility, and evidence rules. Existing company policies are never selected automatically.
 The Bootwear Brand Vault offers a downloadable, fictional shoe-brand guideline PDF and a judge walkthrough.
-Use **Use Bootwear PDF** in the studio to activate the shared demo, or import a text-based guideline
-PDF as a Manager or Legal reviewer. General audits remain available.
+Use **Use Bootwear PDF** in the studio to activate the shared demo. Managers and Legal reviewers
+can import text PDFs, scanned PDFs, and PNG or JPEG guideline images. General audits remain available.
 
 The API still accepts an explicit `policy_id` for callers with custom rules. Old audit records,
 policy snapshots, review decisions, and revision links remain intact. General defaults are
@@ -20,15 +20,18 @@ Markdown image descriptions; contextual clarity and tone review needs the AI pro
 
 - `POST /api/demo/bootwear` ingests the bundled PDF once and returns its source/policy IDs.
 - `GET /api/demo/bootwear/guidelines.pdf` downloads the judge handout (requires a session).
-- `POST /api/guidelines/import` accepts `brand_name` and a PDF `file` from Manager/Legal users.
-- `GET /api/guidelines/{document_id}/pdf` downloads an accessible retained source PDF.
+- `POST /api/guidelines/extract` previews page text and OCR confidence for Manager and Legal users. Add `?stream=true` for newline-delimited progress events.
+- `POST /api/guidelines/extract-page` retries OCR for one page.
+- `POST /api/guidelines/import` accepts `brand_name`, a PDF or image `file`, and optional `reviewed_pages_json` from Manager and Legal users.
+- `GET /api/guidelines/{document_id}/pdf` downloads the retained source in its original format.
 - Pass the returned `policy_id` to the existing text or upload audit endpoints. Revisions reuse
   that policy and retrieve passages again for their new content.
 
-PDFs are limited to the configured upload size, 100 pages, and 250,000 extracted characters.
-Scanned, empty, encrypted, malformed, and non-PDF sources are rejected. Pages marked as the
-Bootwear evaluation exercise are excluded from indexing. The remaining page-labelled passages
-are ranked locally by combining BM25 keyword scores with matches on English concepts such as
+Guideline imports are limited to the configured upload size, 100 PDF pages, and 250,000
+extracted characters. Local OCR handles scanned pages and images. The preview lets reviewers
+correct extracted text before indexing. Encrypted PDFs and imports with no usable text are
+rejected. Pages marked as the Bootwear evaluation exercise are excluded from indexing. The
+remaining page-labelled passages are ranked locally using BM25 and English concepts such as
 ranking, waterproofing, medical benefits, and returns. Each selected passage records which
 signals matched. Up to six passages are sent to the configured audit provider.
 
@@ -46,7 +49,7 @@ vocabulary. The configured provider handles contextual interpretation of free-fo
 Evidence verification assesses support within the supplied material. Independent fact checking
 and the approval decision remain human review steps.
 
-The `guideline_documents` table is created on startup alongside the existing tables. Source PDFs,
+The `guideline_documents` table is created on startup alongside the existing tables. Source files,
 their SHA-256 digests, and extracted passages are retained; policies are immutable and a new
 import creates a separate version. Creators can use the shared Bootwear fixture, while another
 user's private imports are hidden from them. Manager/Legal workspace reviewers can access
@@ -58,20 +61,13 @@ Image palette matching is approximate and visual accessibility still needs manua
 
 Creators can access their own new audits. Reviewers can access the shared workspace audit queue,
 including older audits without an owner. High-severity approvals require the legal role.
-Approval is recorded in BrandGuard and does not publish to a CMS.
+Approval is recorded in BrandGuard. WordPress draft sync is a separate action.
 
 ## Local development
 
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8000
-```
-
-The default database is a local SQLite file. Set `DATABASE_URL` to PostgreSQL for deployment.
-Interactive API documentation is available at `http://localhost:8000/docs`.
+See the [root setup guide](../README.md#run-locally) for dependency installation, keyless
+configuration, and launch commands on Windows, macOS, and Linux. Interactive API documentation
+is available at [http://localhost:8000/docs](http://localhost:8000/docs).
 
 The hackathon UI uses one-click demo login. Choose Creator, Manager, or Legal to start
 a session without entering an email or password. The backend issues a role-scoped JWT
@@ -146,8 +142,8 @@ Local remediation only proposes explicit terminology, tone, and messaging
 replacements from the selected policy. It does not invent tests, benefits, or
 replacement claims; unresolved claims need evidence or manual revision. AI
 explanations are suggestions, not independent verification. No-change proposals
-leave the draft untouched. Run the edit-selection checks with
-`npm run test:remediation` on Node.js 22.6+.
+leave the draft untouched. Run the edit-selection checks from the repository root with
+`npm run test:remediation`.
 
 ## Audit reports
 
@@ -165,7 +161,18 @@ document text are explicitly identified. Original image uploads are not retained
 PDFs use embedded fonts and automatic pagination. Unsupported font characters appear as Unicode
 code labels; JSON retains the original Unicode. ReportLab is included in backend dependencies.
 
-## Deployment
+## WordPress draft integration
 
-`docker compose up --build` starts the API and PostgreSQL database together. The frontend
-should be configured to call the deployed API base URL.
+The WordPress endpoints require a BrandGuard session and use the supplied WordPress username
+and Application Password for outbound REST requests.
+
+- `POST /api/wordpress/connect` checks the connection and account.
+- `POST /api/wordpress/drafts` returns unpublished drafts the WordPress account can access.
+- `POST /api/wordpress/sync-back` sends revised content and an audit reference to the selected post.
+
+See the [WordPress setup guide](../README.md#connect-wordpress-optional) for the studio workflow.
+
+## Docker
+
+See the [Docker setup guide](../README.md#optional-docker-backend-and-postgresql) for the
+required environment variables and how to start the API and PostgreSQL together.
