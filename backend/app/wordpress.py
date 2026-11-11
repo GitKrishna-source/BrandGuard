@@ -27,7 +27,11 @@ def _normalize_site_url(url: str) -> str:
     url = url.strip()
     if not url.startswith(("http://", "https://")):
         url = f"https://{url}"
-    return url.rstrip("/")
+    url = url.rstrip("/")
+    for suffix in ("/wp-admin", "/wp-login.php", "/wp-content/maintenance.php", "/wp-admin/index.php"):
+        if url.endswith(suffix):
+            url = url[: -len(suffix)].rstrip("/")
+    return url
 
 
 def _build_auth_header(username: str, app_password: str) -> dict[str, str]:
