@@ -168,7 +168,7 @@ and Application Password for outbound REST requests.
 
 - `POST /api/wordpress/connect` checks the connection and account.
 - `POST /api/wordpress/drafts` returns unpublished drafts the WordPress account can access.
-- `POST /api/wordpress/sync-back` updates an existing draft with revised content and a hidden audit reference. Send the imported `date_modified` as `expected_modified` to detect newer edits before writing.
+- `POST /api/wordpress/sync-back` requires an accessible saved audit ID and content that exactly matches that audit. The updated draft includes a hidden reference and score from the saved audit. Send the imported `date_modified` as `expected_modified` to detect newer edits before writing.
 
 Set `WORDPRESS_LIVE_ENABLED=false` for a public sample-only deployment. The browser demo uses the BrandGuard login and audit APIs and simulates WordPress sync locally.
 

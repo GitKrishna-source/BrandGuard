@@ -667,9 +667,17 @@ def get_wordpress_drafts(
 @app.post("/api/wordpress/sync-back", response_model=WordPressSyncResponse, dependencies=[Depends(require_live_wordpress)])
 def sync_wordpress_draft(
     payload: WordPressSyncRequest,
+    db: Session = Depends(get_db),
+    user: dict[str, str] = Depends(get_current_user),
 ) -> WordPressSyncResponse:
+    audit = accessible_audit(db, payload.audit_id, user)
+    if audit.content_type == "image" or audit.content != payload.content:
+        raise HTTPException(
+            status_code=409,
+            detail="The draft does not match the saved audit. Re-audit the current draft before syncing.",
+        )
     try:
-        return sync_draft_to_wordpress(payload)
+        return sync_draft_to_wordpress(payload, audit)
     except WordPressDraftConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:

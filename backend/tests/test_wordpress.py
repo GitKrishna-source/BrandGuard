@@ -4,6 +4,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from app.auth import create_access_token
 from app.main import app
 
 
@@ -12,6 +13,35 @@ def auth_header():
     with TestClient(app) as client:
         token = client.post("/api/auth/demo", json={"role": "creator"}).json()["access_token"]
         return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def saved_revision(auth_header, monkeypatch):
+    monkeypatch.setattr("app.main.settings.ai_provider", "local")
+    with TestClient(app) as client:
+        original = client.post("/api/audits", headers=auth_header, json={
+            "content_type": "text",
+            "content": "Our footwear is guaranteed to be indestructible.",
+        })
+        assert original.status_code == 201
+        revision = client.post(f"/api/audits/{original.json()['id']}/revisions", headers=auth_header, json={
+            "content": "Our footwear is rigorously tested for long-lasting durability.",
+        })
+        assert revision.status_code == 201
+        return revision.json()
+
+
+@pytest.fixture
+def sync_payload(saved_revision):
+    return {
+        "site_url": "https://example.com",
+        "username": "editor",
+        "app_password": "secret_app_pw",
+        "post_id": 101,
+        "content": saved_revision["content_preview"],
+        "audit_id": saved_revision["id"],
+        "expected_modified": "2026-11-10T12:00:00",
+    }
 
 
 def test_wordpress_endpoints_require_auth():
@@ -132,7 +162,7 @@ def test_wordpress_fetch_drafts(auth_header, monkeypatch):
         assert data["drafts"][1]["title"] == "Summer Campaign Notes"
 
 
-def test_wordpress_sync_back(auth_header, monkeypatch):
+def test_wordpress_sync_back(auth_header, monkeypatch, saved_revision, sync_payload):
     captured_payloads = []
 
     def mock_handler(request: httpx.Request):
@@ -155,39 +185,54 @@ def test_wordpress_sync_back(auth_header, monkeypatch):
     monkeypatch.setattr("app.wordpress._get_client", lambda: httpx.Client(transport=transport))
 
     with TestClient(app) as client:
+        spoofed_score = (saved_revision["score"] + 1) % 101
         res = client.post(
             "/api/wordpress/sync-back",
             headers=auth_header,
-            json={
-                "site_url": "https://example.com",
-                "username": "editor",
-                "app_password": "secret_app_pw",
-                "post_id": 101,
-                "content": "Our footwear is rigorously tested for long-lasting durability.",
-                "audit_id": "audit-test-12345",
-                "audit_score": 96,
-                "expected_modified": "2026-11-10T12:00:00",
-            },
+            json={**sync_payload, "audit_score": spoofed_score},
         )
         assert res.status_code == 200
         data = res.json()
         assert data["success"] is True
         assert data["post_id"] == 101
-        assert "BG-audit-te" in data["audit_reference"]
+        assert data["audit_reference"] == f"BG-{saved_revision['id'][:8]}"
         assert data["status"] == "draft"
         assert data["date_modified"] == "2026-11-10T12:01:00"
         assert len(captured_payloads) == 1
         assert captured_payloads[0]["status"] == "draft"
+        assert captured_payloads[0]["content"].startswith(f"{sync_payload['content']}\n\n")
         assert "BrandGuard AI Compliance Audit Reference" in captured_payloads[0]["content"]
-        assert "96/100" in captured_payloads[0]["content"]
+        assert f"Score: {saved_revision['score']}/100" in captured_payloads[0]["content"]
         assert "<small>" not in captured_payloads[0]["content"]
+
+
+@pytest.mark.parametrize("overrides, expected_status", [
+    ({"audit_id": None}, 422),
+    ({"audit_id": "missing-audit"}, 404),
+    ({"content": "A newer draft that has not been audited."}, 409),
+])
+def test_wordpress_sync_requires_a_matching_audit(auth_header, monkeypatch, sync_payload, overrides, expected_status):
+    monkeypatch.setattr("app.wordpress._get_client", lambda: pytest.fail("Invalid audits must not reach WordPress"))
+
+    with TestClient(app) as client:
+        response = client.post("/api/wordpress/sync-back", headers=auth_header, json={**sync_payload, **overrides})
+        assert response.status_code == expected_status
+
+
+def test_wordpress_sync_rejects_another_creators_audit(monkeypatch, sync_payload):
+    monkeypatch.setattr("app.wordpress._get_client", lambda: pytest.fail("Inaccessible audits must not reach WordPress"))
+    token = create_access_token({"username": "other@brandguard.local", "role": "creator"})
+
+    with TestClient(app) as client:
+        response = client.post("/api/wordpress/sync-back", headers={"Authorization": f"Bearer {token}"}, json=sync_payload)
+        assert response.status_code == 404
 
 
 @pytest.mark.parametrize("remote_status, modified", [
     ("publish", "2026-11-10T12:00:00"),
     ("draft", "2026-11-10T12:01:00"),
 ])
-def test_sync_rejects_changed_or_published_post(auth_header, monkeypatch, remote_status, modified):
+def test_sync_rejects_changed_or_published_post(auth_header, monkeypatch, sync_payload, remote_status, modified):
     def mock_handler(request: httpx.Request):
         assert request.method == "GET", "Conflicted drafts must not be overwritten"
         return httpx.Response(200, json={"status": remote_status, "modified": modified})
@@ -196,14 +241,7 @@ def test_sync_rejects_changed_or_published_post(auth_header, monkeypatch, remote
     monkeypatch.setattr("app.wordpress._get_client", lambda: httpx.Client(transport=transport))
 
     with TestClient(app) as client:
-        response = client.post("/api/wordpress/sync-back", headers=auth_header, json={
-            "site_url": "https://example.com",
-            "username": "editor",
-            "app_password": "secret_app_pw",
-            "post_id": 101,
-            "content": "Revised draft.",
-            "expected_modified": "2026-11-10T12:00:00",
-        })
+        response = client.post("/api/wordpress/sync-back", headers=auth_header, json=sync_payload)
         assert response.status_code == 409
 
 
@@ -217,5 +255,6 @@ def test_judge_workspace_can_disable_live_wordpress(auth_header, monkeypatch, en
             "app_password": "secret_app_pw",
             "post_id": 101,
             "content": "Revised draft.",
+            "audit_id": "missing-audit",
         })
         assert response.status_code == 403

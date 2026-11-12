@@ -300,8 +300,7 @@ class WordPressSyncRequest(BaseModel):
     post_id: int = Field(gt=0)
     content: str = Field(min_length=1)
     title: str | None = None
-    audit_id: str | None = None
-    audit_score: int | None = Field(default=None, ge=0, le=100)
+    audit_id: str = Field(min_length=1, max_length=36)
     expected_modified: str | None = None
     status: Literal["draft"] = "draft"
 

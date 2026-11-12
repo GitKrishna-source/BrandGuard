@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from .models import Audit
 from .schemas import (
     WordPressConnectRequest,
     WordPressConnectResponse,
@@ -193,22 +194,19 @@ def fetch_wordpress_drafts(req: WordPressConnectRequest, per_page: int = 20) -> 
         raise ValueError(f"Failed to fetch drafts from {site_url}: {exc}") from exc
 
 
-def sync_draft_to_wordpress(req: WordPressSyncRequest) -> WordPressSyncResponse:
+def sync_draft_to_wordpress(req: WordPressSyncRequest, audit: Audit) -> WordPressSyncResponse:
     site_url = _normalize_site_url(req.site_url)
     headers = _build_auth_header(req.username, req.app_password)
 
     now = datetime.now(UTC)
-    audit_id = re.sub(r"[^A-Za-z0-9-]", "", (req.audit_id or "")[:8])
-    audit_id = re.sub(r"-+", "-", audit_id).strip("-")
-    audit_ref = f"BG-{audit_id or now.strftime('%Y%m%d%H%M')}"
+    audit_ref = f"BG-{audit.id[:8]}"
     timestamp = now.strftime("%Y-%m-%d %H:%M UTC")
-    score_str = f"{req.audit_score}/100" if req.audit_score is not None else "Unavailable"
 
     audit_comment = (
         f"\n\n{AUDIT_MARKER}\n"
-        f"<!-- Reference: {audit_ref} | Score: {score_str} | Synced At: {timestamp} -->"
+        f"<!-- Reference: {audit_ref} | Score: {audit.score}/100 | Synced At: {timestamp} -->"
     )
-    final_content = AUDIT_NOTE.sub("", req.content).rstrip() + audit_comment
+    final_content = AUDIT_NOTE.sub("", audit.content).rstrip() + audit_comment
 
     payload = {
         "content": final_content,

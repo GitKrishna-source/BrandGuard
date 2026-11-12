@@ -326,8 +326,7 @@ export interface WordPressSyncRequest extends WordPressConfig {
   post_id: number;
   content: string;
   title?: string;
-  audit_id?: string;
-  audit_score?: number;
+  audit_id: string;
   expected_modified?: string;
   status?: 'draft';
 }

@@ -167,7 +167,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
         post_id: draft.id,
         content: customText,
         audit_id: currentAuditId,
-        audit_score: auditResult?.score,
         expected_modified: draft.date_modified || undefined,
       });
       setWpLink({ draft: { ...draft, date_modified: res.date_modified || '', content: customText }, config });
