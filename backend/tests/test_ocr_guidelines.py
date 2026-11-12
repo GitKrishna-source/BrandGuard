@@ -553,7 +553,35 @@ def test_ocr_engine_unavailable_fails_loudly_instead_of_zero_ocr_pages(client, m
     )
     assert stream_res.status_code == 200
     events = [json.loads(line) for line in stream_res.text.splitlines() if line.strip()]
-    assert events[-1]["stage"] == "failed"
+    assert events[-1] == {
+        "stage": "failed",
+        "progress": 100,
+        "message": "OCR engine could not be initialized on the server.",
+    }
+
+
+def test_guideline_stream_reports_unexpected_extraction_failure(client, monkeypatch, caplog):
+    def interrupted_extraction(*args, **kwargs):
+        yield {"stage": "detecting", "progress": 10}
+        raise RuntimeError("Internal extraction error")
+
+    monkeypatch.setattr("app.main.iter_extract_guideline_document", interrupted_extraction)
+    response = client.post(
+        "/api/guidelines/extract?stream=true",
+        headers=auth("manager"),
+        files={"file": ("Guide.pdf", _text_pdf([["Brand policy rule."]]), "application/pdf")},
+    )
+
+    assert response.status_code == 200
+    assert [json.loads(line) for line in response.text.splitlines()] == [
+        {"stage": "detecting", "progress": 10},
+        {
+            "stage": "failed",
+            "progress": 100,
+            "message": "Unable to process uploaded guideline document",
+        },
+    ]
+    assert "Failed to extract guideline preview" in caplog.messages
 
 
 def test_invoke_ocr_reads_rapidocr_output_and_passes_orientation_flag():

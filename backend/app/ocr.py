@@ -91,7 +91,7 @@ def _page_has_images(page: Any) -> bool:
         if len(page.images) > 0:
             return True
     except Exception:
-        pass
+        logger.debug("Unable to enumerate PDF page images", exc_info=True)
     try:
         resources = page.get("/Resources")
         if resources and "/XObject" in resources:
@@ -101,7 +101,7 @@ def _page_has_images(page: Any) -> bool:
                 if resolved.get("/Subtype") == "/Image":
                     return True
     except Exception:
-        return False
+        logger.debug("Unable to inspect PDF page image resources", exc_info=True)
     return False
 
 
@@ -158,11 +158,11 @@ def _prepare_pil_image(image: Image.Image, *, enhanced: bool = False) -> Image.I
     target_min_long_edge = 1800 if enhanced else MIN_IMAGE_LONG_EDGE
     if long_edge < target_min_long_edge:
         scale = min(3.0 if enhanced else 2.2, target_min_long_edge / long_edge)
-        new_size = (max(1, int(round(width * scale))), max(1, int(round(height * scale))))
+        new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
         rgb = rgb.resize(new_size, Image.Resampling.BICUBIC)
     elif long_edge > MAX_IMAGE_DIMENSION:
         scale = MAX_IMAGE_DIMENSION / long_edge
-        new_size = (max(1, int(round(width * scale))), max(1, int(round(height * scale))))
+        new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
         rgb = rgb.resize(new_size, Image.Resampling.LANCZOS)
 
     if enhanced:
@@ -199,7 +199,7 @@ def _parse_ocr_boxes(raw_result: Any) -> OcrPassResult:
             max_y = max(ys)
             center_y = (min_y + max_y) / 2.0
             height = max(8.0, max_y - min_y)
-        except Exception:
+        except (LookupError, OverflowError, TypeError, ValueError):
             min_x = 0.0
             center_y = float(len(items) * 20)
             height = 16.0
@@ -303,6 +303,13 @@ def _open_pdf_reader(data: bytes) -> PdfReader:
     return reader
 
 
+def _close_pdfium_resource(resource: pdfium.PdfDocument | pdfium.PdfPage | pdfium.PdfBitmap) -> None:
+    try:
+        resource.close()
+    except Exception:
+        logger.warning("Failed to close PDFium %s", type(resource).__name__, exc_info=True)
+
+
 def _render_pdfium_page(pdfium_doc: Any, page_index: int, *, dpi: int) -> Image.Image:
     page = pdfium_doc[page_index]
     bitmap = None
@@ -311,14 +318,8 @@ def _render_pdfium_page(pdfium_doc: Any, page_index: int, *, dpi: int) -> Image.
         return bitmap.to_pil().copy()
     finally:
         if bitmap is not None:
-            try:
-                bitmap.close()
-            except Exception:
-                pass
-        try:
-            page.close()
-        except Exception:
-            pass
+            _close_pdfium_resource(bitmap)
+        _close_pdfium_resource(page)
 
 
 def _build_ocr_page(
@@ -386,9 +387,15 @@ def _should_use_native_directly(native_text: str, has_images: bool) -> bool:
     alnum = _alnum_count(native_text)
     if alnum >= NATIVE_TEXT_ALNUM_THRESHOLD:
         return True
-    if not has_images and alnum >= NO_IMAGE_NATIVE_ALNUM_THRESHOLD:
-        return True
-    return False
+    return not has_images and alnum >= NO_IMAGE_NATIVE_ALNUM_THRESHOLD
+
+
+def _extract_native_text(reader_page: Any) -> str:
+    try:
+        return normalize_extracted_text(reader_page.extract_text() or "")
+    except Exception:
+        logger.debug("Unable to extract selectable PDF text", exc_info=True)
+        return ""
 
 
 def _extract_pdf_page(
@@ -399,10 +406,7 @@ def _extract_pdf_page(
     force_ocr: bool = False,
     enhanced: bool = False,
 ) -> ExtractedPage:
-    try:
-        native_text = normalize_extracted_text(reader_page.extract_text() or "")
-    except Exception:
-        native_text = ""
+    native_text = _extract_native_text(reader_page)
     has_images = _page_has_images(reader_page)
 
     if not force_ocr and _should_use_native_directly(native_text, has_images):
@@ -426,6 +430,7 @@ def _extract_pdf_page(
     except OcrEngineUnavailableError:
         raise
     except Exception as error:
+        logger.warning("OCR processing failed on PDF page %d", page_number, exc_info=True)
         if _alnum_count(native_text) >= NO_IMAGE_NATIVE_ALNUM_THRESHOLD:
             return ExtractedPage(
                 page=page_number,
@@ -493,10 +498,7 @@ def extract_single_page(
     try:
         return _extract_pdf_page(reader.pages[page_number - 1], pdfium_doc, page_number, force_ocr=True, enhanced=enhanced)
     finally:
-        try:
-            pdfium_doc.close()
-        except Exception:
-            pass
+        _close_pdfium_resource(pdfium_doc)
 
 
 def build_preview(
@@ -594,6 +596,7 @@ def iter_extract_guideline_document(
         except OcrEngineUnavailableError:
             raise
         except Exception as error:
+            logger.warning("OCR processing failed for guideline image", exc_info=True)
             page = ExtractedPage(
                 page=1,
                 text="",
@@ -624,10 +627,7 @@ def iter_extract_guideline_document(
         for index, reader_page in enumerate(reader.pages, start=1):
             if index in skip:
                 continue
-            try:
-                native_text = normalize_extracted_text(reader_page.extract_text() or "")
-            except Exception:
-                native_text = ""
+            native_text = _extract_native_text(reader_page)
             has_images = _page_has_images(reader_page)
             pct = 15 + int((index - 1) / max(1, total_pages) * 75)
 
@@ -668,10 +668,7 @@ def iter_extract_guideline_document(
                 pages.append(_extract_pdf_page(reader_page, pdfium_doc, index, force_ocr=False, enhanced=False))
     finally:
         if pdfium_doc is not None:
-            try:
-                pdfium_doc.close()
-            except Exception:
-                pass
+            _close_pdfium_resource(pdfium_doc)
 
     preview = build_preview(filename, sha256, source_type, pages, duplicate_of=duplicate_of)
     yield {

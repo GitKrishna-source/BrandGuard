@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from collections import Counter, defaultdict
 from contextlib import asynccontextmanager
 
@@ -80,6 +81,7 @@ from .wordpress import (
 )
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -194,8 +196,14 @@ def extract_guideline_preview(
             try:
                 for event in iter_extract_guideline_document(data, filename, duplicate_of=duplicate_of):
                     yield json.dumps(event) + "\n"
-            except Exception as error:
-                yield json.dumps({"stage": "failed", "progress": 100, "message": str(error)}) + "\n"
+            except (OcrEngineUnavailableError, ValueError) as error:
+                message = str(error)
+            except Exception:
+                logger.exception("Failed to extract guideline preview")
+                message = "Unable to process uploaded guideline document"
+            else:
+                return
+            yield json.dumps({"stage": "failed", "progress": 100, "message": message}) + "\n"
 
         return StreamingResponse(
             event_stream(),
