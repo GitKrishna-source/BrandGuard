@@ -78,22 +78,6 @@ export default function Footer({
             </button>
           </div>
         </div>
-
-        {/* Photo credit with improved contrast, font size and readability */}
-        <div className="mt-10 pt-6 border-t border-[#1D212C] text-center md:text-left">
-          <p className="text-[12px] sm:text-[13px] text-[#929BAD] leading-normal">
-            Landscape photograph by{' '}
-            <a
-              href="https://unsplash.com/photos/a-foggy-forest-with-a-sunset-in-the-background-oY8IrtfeYgQ"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[#CBD5E1] hover:text-[#A5B4FC] underline decoration-[#818CF8]/40 hover:decoration-[#A5B4FC] underline-offset-2 transition-colors"
-            >
-              Luca Bravo
-            </a>
-            , Unsplash.
-          </p>
-        </div>
       </div>
     </footer>
   );

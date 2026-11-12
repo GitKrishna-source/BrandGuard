@@ -114,7 +114,7 @@ The health check should return `"status": "ok"`. The backend creates the tables 
 
 1. Open the app and choose **Creator** in **Demo Login**. To audit your own copy, choose **Launch Audit**, paste a draft, and click **Run Audit**. The general audit uses built-in rules without any brand setup.
 2. To try an audit with citations, click **Try the Bootwear PDF demo** on the home page or **Use Bootwear PDF** in the audit studio. Bootwear is a fictional shoe brand with bundled guidelines.
-3. Click **Try paraphrased claims**, then **Run Audit**. Expand a finding's evidence check to see the page, passage, and reason for the citation assessment. **Analysis engine** shows which engine handled the audit.
+3. Click **Try paraphrased claims**, then **Run Audit**. Expand a finding's evidence check to see the page, passage, and reason for the citation assessment.
 4. To try Auto-Fix in local mode, choose **Load Bootwear test draft**, click **Save Revision & Re-audit**, and open **Review Auto-Fix edits**. Review the proposed changes, accept the edits you want, and select **Use accepted edits**. **Undo Fix** restores the prior wording. Click **Save Revision & Re-audit** again to score the revised draft.
 5. Switch to **Manager** or **Legal** using the account button. Open **Reviews** to select a saved audit, add a comment, request changes, or approve it. An audit with a high-severity finding requires Legal approval.
 6. Select **Export saved audit** in the studio or **Export this audit** in Reviews. Download the saved record as PDF or JSON.
@@ -167,7 +167,7 @@ Local mode uses deterministic rules for common issues and recognized claim conce
 - **Groq** — Set `AI_PROVIDER=groq` and `GROQ_API_KEY`. Set `GROQ_MODEL` to a text model available to your account. For image audits, set `GROQ_VISION_MODEL` to a vision-capable model.
 - **Gemini** — Set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `GEMINI_MODEL` to a model that supports the content types you want to audit.
 
-Keep provider keys in `backend/.env`. The selected provider may receive the draft, image, and relevant guideline passages. If the key is missing or the provider request fails, the audit falls back to local checks and records that in **Analysis engine**. With `AI_PROVIDER=local`, drafts stay in the local app and its database.
+Keep provider keys in `backend/.env`. The selected provider may receive the draft, image, and relevant guideline passages. If the key is missing or the provider request fails, the audit falls back to local checks and records that in the saved audit. With `AI_PROVIDER=local`, drafts stay in the local app and its database.
 
 ### Optional Docker backend and PostgreSQL
 
@@ -235,6 +235,6 @@ The benchmark runs local checks against 40 labeled text cases and writes a JSON 
 | The page opens but login or auditing fails | Check [the API health endpoint](http://localhost:8000/health), then verify `VITE_API_BASE_URL` and `FRONTEND_ORIGIN`. The origin must match the browser's scheme, host, and port, including the choice between `localhost` and `127.0.0.1`. |
 | A default port is in use | Stop the other service or select a free port in the separate-terminal commands. Update `VITE_API_BASE_URL` for an API port change or `FRONTEND_ORIGIN` for a frontend port change. Restart the affected servers. Vite can automatically pick another port, so check the URL printed in its terminal. |
 | Demo login returns HTTP 403 | Set `DEMO_LOGIN_ENABLED=true` in `backend/.env` and restart the API. Sign in again if your token expires. |
-| The result shows a provider fallback | Check the backend log and **Analysis engine** for details. Confirm the provider selection, key, model access, and quota. |
+| The audit falls back to local checks | Check the backend log for details. Confirm the provider selection, key, model access, and quota. |
 | Scanned pages have missing or low-confidence text | In the guideline preview, use **Retry Enhanced OCR** or correct the page text before saving. Check the backend log if OCR fails to initialize. |
 | WordPress cannot connect or shows an empty draft list | Check the base URL and confirm the backend can reach its `/wp-json` endpoint. Verify the Application Password, the account's access to the draft, and the post's draft status. |

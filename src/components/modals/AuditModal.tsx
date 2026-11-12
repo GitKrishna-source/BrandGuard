@@ -85,8 +85,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
   const [apiError, setApiError] = useState<string | null>(null);
   const [currentAuditId, setCurrentAuditId] = useState<string | null>(null);
   const [lastSavedAuditId, setLastSavedAuditId] = useState<string | null>(null);
-  const [dataHandling, setDataHandling] = useState<string | null>(null);
-  const [analysisEngine, setAnalysisEngine] = useState<string | null>(null);
   const [guideline, setGuideline] = useState<GuidelineDocumentResponse | null>(initialGuideline ?? null);
   const [isPreparingGuidelines, setIsPreparingGuidelines] = useState(false);
   const [retrievedSources, setRetrievedSources] = useState<RetrievedSource[]>([]);
@@ -197,8 +195,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
       setAuditResult(null);
       setRetrievedSources([]);
       setRetrievalMethod(null);
-      setDataHandling(null);
-      setAnalysisEngine(null);
       setPreviousText(null);
       setRemediationSummary(null);
       setProposal(null);
@@ -230,8 +226,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
     setImageAuditResult(null);
     setRetrievedSources([]);
     setRetrievalMethod(null);
-    setDataHandling(null);
-    setAnalysisEngine(null);
     setApiError(null);
     setPreviousText(null);
     setRemediationSummary(null);
@@ -272,8 +266,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
     onAuditComplete(response);
     setCurrentAuditId(response.id);
     setLastSavedAuditId(response.id);
-    setDataHandling(response.data_handling || null);
-    setAnalysisEngine(response.analysis_engine || null);
     setRetrievedSources(response.retrieved_sources || []);
     setRetrievalMethod(response.retrieval_method || null);
     setAuditedText(content);
@@ -367,8 +359,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           });
           onAuditComplete(response);
           setLastSavedAuditId(response.id);
-          setDataHandling(response.data_handling || null);
-          setAnalysisEngine(response.analysis_engine || null);
           setRetrievedSources(response.retrieved_sources || []);
           setRetrievalMethod(response.retrieval_method || null);
         })
@@ -640,12 +630,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
             )}
 
             {proposal && <RemediationReview proposal={proposal} disabled={busy} onUse={handleUseEdits} onDismiss={discardProposal} />}
-
-            {dataHandling && (
-              <div className="mt-3 rounded-lg border border-accent/20 bg-accent-soft/20 p-3 text-[11px] font-sans text-muted">
-                Analysis engine: {analysisEngine || 'BrandGuard policy engine'}. {dataHandling}
-              </div>
-            )}
 
             {/* Results */}
             {auditResult && (

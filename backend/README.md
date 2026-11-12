@@ -102,8 +102,8 @@ Content is sent only to the explicitly selected provider. Groq does not fall bac
 To explicitly select Gemini, use `AI_PROVIDER=gemini` with `GEMINI_API_KEY` and `GEMINI_MODEL`.
 For local checks only, use `AI_PROVIDER=local`.
 
-Check the result's **Analysis engine** to confirm which provider handled the audit. If the
-selected provider fails, local rules still run and the result and server log explain the
+Check the saved audit report to confirm which provider handled the audit. If the
+selected provider fails, local rules still run and the report and server log explain the
 fallback (for example HTTP 404 for an unavailable model or HTTP 429 for quota limits).
 Provider errors do not include the key, raw provider response, or draft. The provider label
 and data handling notice are saved with new audits.
