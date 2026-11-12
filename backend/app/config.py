@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     auth_secret: str = "development-only-change-this-secret"
     access_token_expire_minutes: int = 30
     demo_login_enabled: bool = True
+    wordpress_live_enabled: bool = True
     max_upload_bytes: int = 10_000_000
     ai_provider: Literal["groq", "gemini", "local"] = "groq"
     groq_api_key: str | None = None

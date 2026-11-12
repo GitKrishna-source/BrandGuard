@@ -328,7 +328,8 @@ export interface WordPressSyncRequest extends WordPressConfig {
   title?: string;
   audit_id?: string;
   audit_score?: number;
-  status?: string;
+  expected_modified?: string;
+  status?: 'draft';
 }
 
 export interface WordPressSyncResponse {
@@ -339,6 +340,7 @@ export interface WordPressSyncResponse {
   audit_reference: string;
   link: string | null;
   message: string;
+  date_modified: string | null;
 }
 
 

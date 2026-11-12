@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Globe, 
@@ -19,14 +19,14 @@ import {
 import type { ModalProps, WordPressConfig, WordPressDraft } from '../../types';
 import { connectWordPress, getWordPressDrafts } from '../../lib/api';
 
-const STORAGE_KEY = 'brandguard_wp_config';
-
 interface WordPressModalProps extends ModalProps {
-  onSelectDraft: (draft: WordPressDraft, config: WordPressConfig) => void;
+  onSelectDraft: (draft: WordPressDraft, config: WordPressConfig | null) => void;
+  onDisconnect: () => void;
+  demoDraft: WordPressDraft;
   activeDraftId?: number;
 }
 
-export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeDraftId }: WordPressModalProps) {
+export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisconnect, demoDraft, activeDraftId }: WordPressModalProps) {
   const [siteUrl, setSiteUrl] = useState('');
   const [username, setUsername] = useState('');
   const [appPassword, setAppPassword] = useState('');
@@ -43,22 +43,6 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
   const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  // Load saved WordPress configuration from localStorage on open
-  useEffect(() => {
-    if (!isOpen) return;
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as WordPressConfig;
-        if (parsed.site_url) setSiteUrl(parsed.site_url);
-        if (parsed.username) setUsername(parsed.username);
-        if (parsed.app_password) setAppPassword(parsed.app_password);
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -92,10 +76,6 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
       setDisplayName(res.user_display_name || res.username);
       setSuccessMessage(`Connected to ${res.site_name || res.site_url} as ${res.user_display_name || res.username}`);
 
-      // Save credentials for reuse
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(currentConfig));
-
-      // Fetch drafts immediately
       await fetchDraftsList(currentConfig);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to connect to WordPress site.';
@@ -125,14 +105,17 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
 
   const handleDisconnect = () => {
     setIsConnected(false);
+    setAppPassword('');
+    setShowPassword(false);
     setDrafts([]);
+    setSearchQuery('');
     setErrorMessage(null);
     setSuccessMessage(null);
-    window.localStorage.removeItem(STORAGE_KEY);
+    onDisconnect();
   };
 
-  const handleChooseDraft = (draft: WordPressDraft) => {
-    onSelectDraft(draft, currentConfig);
+  const handleChooseDraft = (draft: WordPressDraft, config: WordPressConfig | null) => {
+    onSelectDraft(draft, config);
     onClose();
   };
 
@@ -144,7 +127,10 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div 
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wordpress-drafts-title"
         className="bg-layer border border-surface rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -156,18 +142,16 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-ink">WordPress Draft Integration</h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/25">
-                  WP REST API
-                </span>
+                <h3 id="wordpress-drafts-title" className="text-base font-semibold text-ink">WordPress Drafts</h3>
               </div>
               <p className="text-xs text-secondary">
-                Import drafts for compliance auditing and sync revisions back seamlessly.
+                Import a draft, audit the copy, and sync an audited revision.
               </p>
             </div>
           </div>
           <button 
             onClick={onClose}
+            aria-label="Close WordPress drafts"
             className="text-secondary hover:text-ink transition-colors p-1.5 rounded-lg hover:bg-surface"
           >
             <X className="w-5 h-5" />
@@ -176,7 +160,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
 
         {/* Status Alerts */}
         {errorMessage && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-2.5">
+          <div role="alert" className="mx-6 mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <div className="flex-1">{errorMessage}</div>
           </div>
@@ -191,6 +175,28 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
+          <section className="space-y-3 rounded-xl border border-accent/30 bg-accent-soft/30 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-semibold text-ink">WordPress demo</h4>
+                <p className="mt-1 text-xs text-muted">Try a sample draft with your BrandGuard demo login. Sync is simulated in this browser session.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleChooseDraft(demoDraft, null)}
+                disabled={isConnecting || isLoadingDrafts}
+                className="btn btn-primary flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs disabled:opacity-50"
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                {demoDraft.date_modified ? 'Import saved demo draft' : 'Import sample draft'}
+              </button>
+            </div>
+            <div className="rounded-lg border border-line bg-surface p-3 text-xs">
+              <p className="font-medium text-ink">{demoDraft.title}{demoDraft.date_modified ? ' · Saved draft' : ''}</p>
+              <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-muted">{demoDraft.content}</p>
+            </div>
+          </section>
+
           {/* Connection Bar / Details */}
           {!isConnected ? (
             <form onSubmit={handleConnectAndFetch} className="space-y-4">
@@ -203,16 +209,18 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Site URL */}
                   <div className="md:col-span-2">
-                    <label className="block text-[11px] font-medium text-secondary mb-1">
+                    <label htmlFor="wordpress-site" className="block text-[11px] font-medium text-secondary mb-1">
                       WordPress Site URL
                     </label>
                     <div className="relative">
                       <Globe className="w-4 h-4 text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
                       <input 
                         type="url"
+                        id="wordpress-site"
                         placeholder="https://your-wordpress-site.com"
                         value={siteUrl}
                         onChange={(e) => setSiteUrl(e.target.value)}
+                        disabled={isConnecting}
                         className="w-full bg-layer border border-surface rounded-xl pl-9 pr-3 py-2 text-xs text-ink placeholder:text-secondary/50 focus:outline-none focus:border-accent"
                         required
                       />
@@ -221,16 +229,18 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
 
                   {/* Username */}
                   <div>
-                    <label className="block text-[11px] font-medium text-secondary mb-1">
+                    <label htmlFor="wordpress-username" className="block text-[11px] font-medium text-secondary mb-1">
                       WordPress Username
                     </label>
                     <div className="relative">
                       <User className="w-4 h-4 text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
                       <input 
                         type="text"
+                        id="wordpress-username"
                         placeholder="admin / editor"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
+                        disabled={isConnecting}
                         className="w-full bg-layer border border-surface rounded-xl pl-9 pr-3 py-2 text-xs text-ink placeholder:text-secondary/50 focus:outline-none focus:border-accent"
                         required
                       />
@@ -239,22 +249,26 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
 
                   {/* Application Password */}
                   <div>
-                    <label className="block text-[11px] font-medium text-secondary mb-1">
+                    <label htmlFor="wordpress-application-password" className="block text-[11px] font-medium text-secondary mb-1">
                       Application Password
                     </label>
                     <div className="relative">
                       <Key className="w-4 h-4 text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
                       <input 
                         type={showPassword ? 'text' : 'password'}
+                        id="wordpress-application-password"
                         placeholder="xxxx xxxx xxxx xxxx"
                         value={appPassword}
                         onChange={(e) => setAppPassword(e.target.value)}
+                        disabled={isConnecting}
+                        autoComplete="off"
                         className="w-full bg-layer border border-surface rounded-xl pl-9 pr-10 py-2 text-xs text-ink placeholder:text-secondary/50 focus:outline-none focus:border-accent"
                         required
                       />
                       <button 
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Hide application password' : 'Show application password'}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-ink"
                       >
                         {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -316,6 +330,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
                 </button>
                 <button
                   onClick={handleDisconnect}
+                  disabled={isConnecting || isLoadingDrafts}
                   className="text-xs text-red-400 hover:text-red-300 py-1.5 px-2.5 rounded-lg border border-red-500/20 hover:bg-red-500/10 transition-colors"
                 >
                   Disconnect
@@ -416,7 +431,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
                         </div>
 
                         <button
-                          onClick={() => handleChooseDraft(draft)}
+                          onClick={() => handleChooseDraft(draft, currentConfig)}
                           className="btn btn-primary text-xs py-2 px-3.5 rounded-xl shrink-0 flex items-center justify-center gap-1.5"
                         >
                           <Sparkles className="w-3.5 h-3.5" />
@@ -432,8 +447,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, activeD
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-surface bg-panel/50 flex items-center justify-between text-xs text-secondary">
-          <span>BrandGuard WordPress Bridge</span>
+        <div className="px-6 py-3.5 border-t border-surface bg-panel/50 flex justify-end text-xs text-secondary">
           <button 
             onClick={onClose}
             className="btn btn-secondary text-xs py-1.5 px-4 rounded-xl"

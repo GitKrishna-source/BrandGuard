@@ -28,18 +28,21 @@ export default function App() {
   const [isApprovalsModalOpen, setIsApprovalsModalOpen] = useState(false);
   const [isGovernanceModalOpen, setIsGovernanceModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isSignInModalOpen, setIsSignInModalOpen] = useState(true);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(() => !getAccessToken());
   const [currentRole, setCurrentRole] = useState<Role>('creator');
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
   const [auditQuery, setAuditQuery] = useState('');
   const [sampleAudit, setSampleAudit] = useState<GuidelineDocumentResponse | null>(null);
   const [auditLaunch, setAuditLaunch] = useState(0);
+  const [startWithWordPressDemo, setStartWithWordPressDemo] = useState(false);
   const [isPreparingSample, setIsPreparingSample] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
   const [latestAudit, setLatestAudit] = useState<ApiAuditResponse | null>(null);
   const [exportAuditId, setExportAuditId] = useState<string | undefined>();
 
   useEffect(() => {
+    // Remove the WordPress credentials stored by older versions.
+    window.localStorage.removeItem('brandguard_wp_config');
     const token = getAccessToken();
     if (!token) return;
     getCurrentUser()
@@ -50,14 +53,20 @@ export default function App() {
         if (getAccessToken() !== token) return;
         logout();
         setIsAuthenticated(false);
+        setIsSignInModalOpen(true);
       });
   }, []);
 
-  const handleSignIn = async (role: Role, signal?: AbortSignal) => {
+  const handleSignIn = async (role: Role, signal?: AbortSignal, wordpressDemo = false) => {
     const response = await demoLogin(role, signal);
     setLatestAudit(null);
     setExportAuditId(undefined);
-    if (isAuthenticated) setIsAuditModalOpen(false);
+    if (isAuthenticated || wordpressDemo) {
+      setIsAuditModalOpen(wordpressDemo);
+      setAuditLaunch((launch) => launch + 1);
+    }
+    if (wordpressDemo) setAuditQuery('');
+    setStartWithWordPressDemo(wordpressDemo);
     setSampleAudit(null);
     setIsApprovalsModalOpen(false);
     setIsGovernanceModalOpen(false);
@@ -87,6 +96,7 @@ export default function App() {
 
   const handleScanQuery = (query: string) => {
     if (isPreparingSample) return;
+    setStartWithWordPressDemo(false);
     setSampleAudit(null);
     setAuditQuery(query);
     setAuditLaunch((launch) => launch + 1);
@@ -101,6 +111,7 @@ export default function App() {
       const signal = AbortSignal.timeout(45000);
       if (!getAccessToken()) await handleSignIn('creator', signal);
       const guideline = await loadBootwearDemo(signal);
+      setStartWithWordPressDemo(false);
       setSampleAudit(guideline);
       setAuditLaunch((launch) => launch + 1);
       setLatestAudit(null);
@@ -194,6 +205,7 @@ export default function App() {
         onClose={() => setIsAuditModalOpen(false)}
         initialText={sampleAudit?.id === 'bootwear-guidelines-v1' ? BOOTWEAR_SAMPLE_DRAFT : auditQuery || undefined}
         initialGuideline={sampleAudit ?? undefined}
+        startWithWordPressDemo={startWithWordPressDemo}
         onAuditComplete={setLatestAudit}
         onExportAudit={handleExportAudit}
       />
@@ -201,6 +213,7 @@ export default function App() {
       <BrandVaultModal
         onOpenAudit={() => { setIsVaultModalOpen(false); openAudit(); }}
         onUseGuideline={(doc) => {
+          setStartWithWordPressDemo(false);
           setSampleAudit(doc);
           setAuditLaunch((launch) => launch + 1);
           setLatestAudit(null);
@@ -208,7 +221,7 @@ export default function App() {
           setIsVaultModalOpen(false);
           setIsAuditModalOpen(true);
         }}
-        onSelectGuideline={(doc) => { setSampleAudit(doc); setAuditLaunch((launch) => launch + 1); }}
+        onSelectGuideline={(doc) => { setStartWithWordPressDemo(false); setSampleAudit(doc); setAuditLaunch((launch) => launch + 1); }}
         onOpenSignIn={() => { setIsVaultModalOpen(false); setIsSignInModalOpen(true); }}
         currentRole={currentRole}
         isAuthenticated={isAuthenticated}
@@ -245,6 +258,7 @@ export default function App() {
         }}
         activeRole={isAuthenticated ? currentRole : undefined}
         onSignIn={handleSignIn}
+        onWordPressDemo={() => handleSignIn('creator', AbortSignal.timeout(45000), true)}
       />
     </div>
   );

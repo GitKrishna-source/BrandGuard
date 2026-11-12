@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -135,12 +137,16 @@ def test_wordpress_sync_back(auth_header, monkeypatch):
 
     def mock_handler(request: httpx.Request):
         url = str(request.url)
+        if request.method == "GET" and "/wp-json/wp/v2/posts/101" in url:
+            assert request.url.params["context"] == "edit"
+            return httpx.Response(200, json={"status": "draft", "modified": "2026-11-10T12:00:00"})
         if request.method == "POST" and "/wp-json/wp/v2/posts/101" in url:
-            captured_payloads.append(request.read().decode("utf-8"))
+            captured_payloads.append(json.loads(request.content))
             return httpx.Response(200, json={
                 "id": 101,
                 "title": {"rendered": "Q4 Product Announcement"},
                 "status": "draft",
+                "modified": "2026-11-10T12:01:00",
                 "link": "https://example.com/?p=101&preview=true",
             })
         return httpx.Response(404)
@@ -160,6 +166,7 @@ def test_wordpress_sync_back(auth_header, monkeypatch):
                 "content": "Our footwear is rigorously tested for long-lasting durability.",
                 "audit_id": "audit-test-12345",
                 "audit_score": 96,
+                "expected_modified": "2026-11-10T12:00:00",
             },
         )
         assert res.status_code == 200
@@ -168,6 +175,47 @@ def test_wordpress_sync_back(auth_header, monkeypatch):
         assert data["post_id"] == 101
         assert "BG-audit-te" in data["audit_reference"]
         assert data["status"] == "draft"
+        assert data["date_modified"] == "2026-11-10T12:01:00"
         assert len(captured_payloads) == 1
-        assert "BrandGuard AI Compliance Audit Reference" in captured_payloads[0]
-        assert "96/100" in captured_payloads[0]
+        assert captured_payloads[0]["status"] == "draft"
+        assert "BrandGuard AI Compliance Audit Reference" in captured_payloads[0]["content"]
+        assert "96/100" in captured_payloads[0]["content"]
+        assert "<small>" not in captured_payloads[0]["content"]
+
+
+@pytest.mark.parametrize("remote_status, modified", [
+    ("publish", "2026-11-10T12:00:00"),
+    ("draft", "2026-11-10T12:01:00"),
+])
+def test_sync_rejects_changed_or_published_post(auth_header, monkeypatch, remote_status, modified):
+    def mock_handler(request: httpx.Request):
+        assert request.method == "GET", "Conflicted drafts must not be overwritten"
+        return httpx.Response(200, json={"status": remote_status, "modified": modified})
+
+    transport = httpx.MockTransport(mock_handler)
+    monkeypatch.setattr("app.wordpress._get_client", lambda: httpx.Client(transport=transport))
+
+    with TestClient(app) as client:
+        response = client.post("/api/wordpress/sync-back", headers=auth_header, json={
+            "site_url": "https://example.com",
+            "username": "editor",
+            "app_password": "secret_app_pw",
+            "post_id": 101,
+            "content": "Revised draft.",
+            "expected_modified": "2026-11-10T12:00:00",
+        })
+        assert response.status_code == 409
+
+
+@pytest.mark.parametrize("endpoint", ["connect", "drafts", "sync-back"])
+def test_judge_workspace_can_disable_live_wordpress(auth_header, monkeypatch, endpoint):
+    monkeypatch.setattr("app.main.settings.wordpress_live_enabled", False)
+    with TestClient(app) as client:
+        response = client.post(f"/api/wordpress/{endpoint}", headers=auth_header, json={
+            "site_url": "https://example.com",
+            "username": "editor",
+            "app_password": "secret_app_pw",
+            "post_id": 101,
+            "content": "Revised draft.",
+        })
+        assert response.status_code == 403

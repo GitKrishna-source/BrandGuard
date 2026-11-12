@@ -1,9 +1,11 @@
 import base64
 import logging
-from datetime import datetime, timezone
+import re
+from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
+
 import httpx
-from pydantic import ValidationError
 
 from .schemas import (
     WordPressConnectRequest,
@@ -17,27 +19,49 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 TIMEOUT = httpx.Timeout(20.0, connect=10.0)
+AUDIT_MARKER = "<!-- BrandGuard AI Compliance Audit Reference -->"
+AUDIT_NOTE = re.compile(
+    rf"(?:\r?\n){{0,2}}{re.escape(AUDIT_MARKER)}\r?\n<!-- Reference: [^\r\n]* -->"
+    r"(?:\r?\n<p><small><em>🛡️ Audited with BrandGuard AI [^\r\n]*</em></small></p>)?"
+)
+
+
+class WordPressDraftConflict(ValueError):
+    pass
 
 
 def _get_client(**kwargs) -> httpx.Client:
-    return httpx.Client(timeout=TIMEOUT, follow_redirects=True, **kwargs)
+    return httpx.Client(timeout=TIMEOUT, **kwargs)
 
 
 def _normalize_site_url(url: str) -> str:
     url = url.strip()
-    if not url.startswith(("http://", "https://")):
+    if "://" not in url:
         url = f"https://{url}"
     url = url.rstrip("/")
     for suffix in ("/wp-admin", "/wp-login.php", "/wp-content/maintenance.php", "/wp-admin/index.php"):
         if url.endswith(suffix):
             url = url[: -len(suffix)].rstrip("/")
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("Enter the canonical HTTPS URL for your WordPress site.")
     return url
+
+
+def _modified(post: dict[str, Any]) -> str:
+    return str(post.get("modified") or post.get("date") or "")
 
 
 def _build_auth_header(username: str, app_password: str) -> dict[str, str]:
     # WordPress application passwords may contain spaces for readability - strip them for basic auth
     clean_pw = app_password.replace(" ", "").strip()
-    token = base64.b64encode(f"{username.strip()}:{clean_pw}".encode("utf-8")).decode("utf-8")
+    token = base64.b64encode(f"{username.strip()}:{clean_pw}".encode()).decode()
     return {
         "Authorization": f"Basic {token}",
         "Content-Type": "application/json",
@@ -57,8 +81,8 @@ def verify_wordpress_connection(req: WordPressConnectRequest) -> WordPressConnec
                 root_res = client.get(f"{site_url}/wp-json")
                 if root_res.status_code == 200:
                     site_name = root_res.json().get("name")
-            except Exception as e:
-                logger.warning(f"Could not fetch site name from /wp-json: {e}")
+            except (httpx.RequestError, ValueError, AttributeError) as error:
+                logger.warning("Could not fetch site name from /wp-json: %s", error)
 
             # 2. Authenticate user via /wp-json/wp/v2/users/me
             user_res = client.get(f"{site_url}/wp-json/wp/v2/users/me", headers=headers)
@@ -124,6 +148,8 @@ def fetch_wordpress_drafts(req: WordPressConnectRequest, per_page: int = 20) -> 
             drafts: list[WordPressDraft] = []
 
             for post in posts_data:
+                if post.get("status") != "draft":
+                    continue
                 # Title
                 raw_title = post.get("title")
                 title_text = ""
@@ -154,10 +180,9 @@ def fetch_wordpress_drafts(req: WordPressConnectRequest, per_page: int = 20) -> 
                     WordPressDraft(
                         id=int(post["id"]),
                         title=title_text.strip(),
-                        content=content_text.strip(),
+                        content=AUDIT_NOTE.sub("", content_text).strip(),
                         excerpt=excerpt_text.strip()[:200],
-                        date_modified=str(post.get("modified") or post.get("date") or ""),
-                        status=str(post.get("status") or "draft"),
+                        date_modified=_modified(post),
                         link=post.get("link"),
                     )
                 )
@@ -172,21 +197,22 @@ def sync_draft_to_wordpress(req: WordPressSyncRequest) -> WordPressSyncResponse:
     site_url = _normalize_site_url(req.site_url)
     headers = _build_auth_header(req.username, req.app_password)
 
-    audit_ref = f"BG-{req.audit_id[:8]}" if req.audit_id else f"BG-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}"
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    score_str = f"{req.audit_score}/100" if req.audit_score is not None else "Compliant"
+    now = datetime.now(UTC)
+    audit_id = re.sub(r"[^A-Za-z0-9-]", "", (req.audit_id or "")[:8])
+    audit_id = re.sub(r"-+", "-", audit_id).strip("-")
+    audit_ref = f"BG-{audit_id or now.strftime('%Y%m%d%H%M')}"
+    timestamp = now.strftime("%Y-%m-%d %H:%M UTC")
+    score_str = f"{req.audit_score}/100" if req.audit_score is not None else "Unavailable"
 
-    # Append audit reference metadata and small disclosure footnote
     audit_comment = (
-        f"\n\n<!-- BrandGuard AI Compliance Audit Reference -->\n"
-        f"<!-- Reference: {audit_ref} | Score: {score_str} | Audited At: {timestamp} -->\n"
-        f'<p><small><em>🛡️ Audited with BrandGuard AI — Reference: <strong>{audit_ref}</strong> (Score: {score_str})</em></small></p>'
+        f"\n\n{AUDIT_MARKER}\n"
+        f"<!-- Reference: {audit_ref} | Score: {score_str} | Synced At: {timestamp} -->"
     )
-    final_content = req.content.rstrip() + audit_comment
+    final_content = AUDIT_NOTE.sub("", req.content).rstrip() + audit_comment
 
-    payload: dict[str, Any] = {
+    payload = {
         "content": final_content,
-        "status": req.status or "draft",
+        "status": "draft",
     }
     if req.title:
         payload["title"] = req.title
@@ -194,6 +220,15 @@ def sync_draft_to_wordpress(req: WordPressSyncRequest) -> WordPressSyncResponse:
     try:
         with _get_client() as client:
             url = f"{site_url}/wp-json/wp/v2/posts/{req.post_id}"
+            current = client.get(url, headers=headers, params={"context": "edit"})
+            if current.status_code != 200:
+                raise ValueError(f"Could not verify WordPress draft (HTTP {current.status_code}).")
+            post = current.json()
+            if post.get("status") != "draft":
+                raise WordPressDraftConflict("This WordPress post is no longer a draft. Import another draft.")
+            if req.expected_modified and _modified(post) != req.expected_modified:
+                raise WordPressDraftConflict("This draft changed in WordPress. Save your edits separately and reimport the latest draft.")
+
             res = client.post(url, headers=headers, json=payload)
 
             if res.status_code not in (200, 201):
@@ -216,6 +251,7 @@ def sync_draft_to_wordpress(req: WordPressSyncRequest) -> WordPressSyncResponse:
                 audit_reference=audit_ref,
                 link=post_data.get("link"),
                 message=f"Draft successfully updated in WordPress with audit reference {audit_ref}.",
+                date_modified=_modified(post_data) or None,
             )
     except httpx.RequestError as exc:
         logger.error(f"Network error updating WordPress post {req.post_id} at {site_url}: {exc}")

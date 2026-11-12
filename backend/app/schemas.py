@@ -297,12 +297,13 @@ class WordPressSyncRequest(BaseModel):
     site_url: str = Field(min_length=1, max_length=500)
     username: str = Field(min_length=1, max_length=120)
     app_password: str = Field(min_length=1, max_length=120)
-    post_id: int
+    post_id: int = Field(gt=0)
     content: str = Field(min_length=1)
     title: str | None = None
     audit_id: str | None = None
-    audit_score: int | None = None
-    status: str = "draft"
+    audit_score: int | None = Field(default=None, ge=0, le=100)
+    expected_modified: str | None = None
+    status: Literal["draft"] = "draft"
 
 
 class WordPressSyncResponse(BaseModel):
@@ -313,4 +314,5 @@ class WordPressSyncResponse(BaseModel):
     audit_reference: str
     link: str | None = None
     message: str
+    date_modified: str | None = None
 

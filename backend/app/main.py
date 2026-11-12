@@ -34,7 +34,6 @@ from .retrieval import (
     find_duplicate_document,
     import_guidelines,
     list_accessible_documents,
-    import_guidelines,
 )
 from .schemas import (
     AuditCreate,
@@ -49,13 +48,13 @@ from .schemas import (
     GuidelineDocumentResponse,
     GuidelineExtractionPreview,
     GuidelinePageRetryResponse,
-    ReviewedPageInput,
     HealthResponse,
     LoginRequest,
     LoginResponse,
     RemediateRequest,
     RemediateResponse,
     ReviewCreate,
+    ReviewedPageInput,
     ReviewResponse,
     RevisionCreate,
     RevisionResponse,
@@ -66,17 +65,18 @@ from .schemas import (
     WordPressSyncRequest,
     WordPressSyncResponse,
 )
-from .wordpress import (
-    fetch_wordpress_drafts,
-    sync_draft_to_wordpress,
-    verify_wordpress_connection,
-)
 from .services import (
     audit_data_handling,
     audit_text_with_provider,
     audit_uploaded_file_with_provider,
     extract_document_text,
     remediate_text_with_provider,
+)
+from .wordpress import (
+    WordPressDraftConflict,
+    fetch_wordpress_drafts,
+    sync_draft_to_wordpress,
+    verify_wordpress_connection,
 )
 
 settings = get_settings()
@@ -635,10 +635,17 @@ def accessible_audit(db: Session, audit_id: str, user: dict[str, str]) -> Audit:
     return audit
 
 
-@app.post("/api/wordpress/connect", response_model=WordPressConnectResponse)
+def require_live_wordpress(_: dict[str, str] = Depends(get_current_user)) -> None:
+    if not settings.wordpress_live_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail="Live WordPress connections are disabled in this workspace. Try the WordPress demo.",
+        )
+
+
+@app.post("/api/wordpress/connect", response_model=WordPressConnectResponse, dependencies=[Depends(require_live_wordpress)])
 def connect_wordpress(
     payload: WordPressConnectRequest,
-    user: dict[str, str] = Depends(get_current_user),
 ) -> WordPressConnectResponse:
     try:
         return verify_wordpress_connection(payload)
@@ -646,11 +653,10 @@ def connect_wordpress(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.post("/api/wordpress/drafts", response_model=WordPressDraftsResponse)
+@app.post("/api/wordpress/drafts", response_model=WordPressDraftsResponse, dependencies=[Depends(require_live_wordpress)])
 def get_wordpress_drafts(
     payload: WordPressConnectRequest,
     per_page: int = Query(default=20, ge=1, le=50),
-    user: dict[str, str] = Depends(get_current_user),
 ) -> WordPressDraftsResponse:
     try:
         return fetch_wordpress_drafts(payload, per_page=per_page)
@@ -658,13 +664,14 @@ def get_wordpress_drafts(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.post("/api/wordpress/sync-back", response_model=WordPressSyncResponse)
+@app.post("/api/wordpress/sync-back", response_model=WordPressSyncResponse, dependencies=[Depends(require_live_wordpress)])
 def sync_wordpress_draft(
     payload: WordPressSyncRequest,
-    user: dict[str, str] = Depends(get_current_user),
 ) -> WordPressSyncResponse:
     try:
         return sync_draft_to_wordpress(payload)
+    except WordPressDraftConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

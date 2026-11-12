@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, BriefcaseBusiness, Check, LoaderCircle, PenLine, Scale, Sparkles, X } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Check, Globe, LoaderCircle, PenLine, Scale, Sparkles, X } from 'lucide-react';
 import type { ModalProps, Role } from '../../types';
 
 interface SignInModalProps extends ModalProps {
   activeRole?: Role;
   onSignIn: (role: Role) => Promise<void>;
+  onWordPressDemo: () => Promise<void>;
 }
 
 const roles: Array<{ id: Role; icon: typeof PenLine; name: string; badge: string; desc: string; permissions: string[] }> = [
@@ -34,24 +35,25 @@ const roles: Array<{ id: Role; icon: typeof PenLine; name: string; badge: string
   },
 ];
 
-export default function SignInModal({ isOpen, onClose, activeRole, onSignIn }: SignInModalProps) {
-  const [signingInRole, setSigningInRole] = useState<Role | null>(null);
+export default function SignInModal({ isOpen, onClose, activeRole, onSignIn, onWordPressDemo }: SignInModalProps) {
+  const [signingIn, setSigningIn] = useState<Role | 'wordpress' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
   if (!isOpen) return null;
 
-  async function enterDemo(role: Role) {
+  async function enterDemo(choice: Role | 'wordpress') {
     if (busy.current) return;
     busy.current = true;
-    setSigningInRole(role);
+    setSigningIn(choice);
     setError(null);
     try {
-      await onSignIn(role);
+      if (choice === 'wordpress') await onWordPressDemo();
+      else await onSignIn(choice);
     } catch {
-      setError('Could not start the demo. Please try your role again in a moment.');
+      setError('Could not start the demo. Please try again in a moment.');
     } finally {
       busy.current = false;
-      setSigningInRole(null);
+      setSigningIn(null);
     }
   }
 
@@ -70,29 +72,42 @@ export default function SignInModal({ isOpen, onClose, activeRole, onSignIn }: S
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} disabled={signingInRole !== null} aria-label="Close demo login" className="rounded-lg p-1 text-muted transition-colors hover:bg-elevated hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50">
+          <button type="button" onClick={onClose} disabled={signingIn !== null} aria-label="Close demo login" className="rounded-lg p-1 text-muted transition-colors hover:bg-elevated hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {signingInRole !== null && (
+        {signingIn !== null && (
           <p role="status" className="flex shrink-0 items-center gap-2 border-b border-accent/20 bg-accent-soft/30 px-5 py-3 text-sm text-ink">
             <LoaderCircle aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none text-accent" />
             Starting server—first connection may take a minute.
           </p>
         )}
 
-        <div className="space-y-3 overflow-y-auto p-5" aria-busy={signingInRole !== null}>
+        <div className="space-y-3 overflow-y-auto p-5" aria-busy={signingIn !== null}>
+          <button
+            type="button"
+            onClick={() => void enterDemo('wordpress')}
+            disabled={signingIn !== null}
+            className="demo-role flex w-full items-center gap-3 rounded-2xl border border-accent/40 bg-accent-soft/30 p-4 text-left hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
+          >
+            <span className="role-icon mini-icon shrink-0"><Globe className="h-4 w-4" aria-hidden="true" /></span>
+            <span className="flex-1">
+              <span className="block text-sm font-semibold text-ink">Try WordPress demo</span>
+              <span className="mt-1 block text-xs text-muted">Sign in as Creator and open a sample draft ready to audit.</span>
+            </span>
+            {signingIn === 'wordpress' ? <LoaderCircle className="h-4 w-4 animate-spin text-accent" aria-hidden="true" /> : <ArrowRight className="h-4 w-4 text-accent" aria-hidden="true" />}
+          </button>
           {roles.map((role) => {
             const RoleIcon = role.icon;
             const isActive = activeRole === role.id;
-            const isLoading = signingInRole === role.id;
+            const isLoading = signingIn === role.id;
             return (
               <button
                 type="button"
                 key={role.id}
                 onClick={() => void enterDemo(role.id)}
-                disabled={signingInRole !== null}
+                disabled={signingIn !== null}
                 aria-label={'Enter demo as ' + role.name}
                 aria-pressed={isActive}
                 className={'demo-role group w-full rounded-2xl border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-wait disabled:opacity-60 ' + (isActive ? 'border-accent/60' : 'border-accent/10 bg-accent/[.025] hover:border-accent/40')}

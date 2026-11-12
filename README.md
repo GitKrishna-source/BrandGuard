@@ -119,6 +119,14 @@ The health check should return `"status": "ok"`. The backend creates the tables 
 5. Switch to **Manager** or **Legal** using the account button. Open **Reviews** to select a saved audit, add a comment, request changes, or approve it. An audit with a high-severity finding requires Legal approval.
 6. Select **Export saved audit** in the studio or **Export this audit** in Reviews. Download the saved record as PDF or JSON.
 
+### Try the WordPress draft demo
+
+1. Open **Demo Login → Try WordPress demo**. BrandGuard signs you in as Creator and opens an imported sample draft. If you already have the studio open, use **Import WordPress Draft → Import sample draft**.
+2. Click **Run Audit** to see the findings. Edit the draft or review and accept Auto-Fix edits, then click **Save Revision & Re-audit**.
+3. Click **Sync to Demo Draft** to see the audit reference, then **View saved demo draft** to inspect the revised copy. BrandGuard saves the audit and revision in the API. The simulated WordPress draft stays in the current studio session and resets on reload.
+
+For a public judge deployment, set `DEMO_LOGIN_ENABLED=true`, `WORDPRESS_LIVE_ENABLED=false`, and `AI_PROVIDER=local` in the backend environment. Use a database dedicated to the demo.
+
 ### Import your own guidelines
 
 Sign in as **Manager** or **Legal** and open **Brand Vault**. Upload a text-based or scanned PDF, or a PNG or JPEG guideline image. The backend extracts page text and runs local OCR where needed. Review the extracted text, correct it or retry OCR on a page, enter the brand name, and select **Confirm & Add to Brand Sources**. Select that source in the audit studio to use it for your next audit.
@@ -131,9 +139,9 @@ Use a WordPress site reachable by the backend over HTTPS and an account with per
 
 1. In WordPress Admin, open **Users → Profile** and create an **Application Password** labeled `BrandGuard`. Copy the generated password. [WordPress Application Passwords guide](https://developer.wordpress.org/advanced-administration/security/application-passwords/)
 2. In BrandGuard, open **Launch Audit** and select **Import WordPress Draft**. Enter the site's base URL, your WordPress username, and the Application Password. Select **Connect & Fetch Drafts** and choose an unpublished post.
-3. Audit and revise the imported text. When the revision is ready, select **Sync to WordPress Draft**. This replaces the linked post's content with the studio text, appends an audit reference, and saves the post as a draft.
+3. Audit the latest revision and select **Sync to WordPress Draft**. This replaces the linked draft body and adds a hidden audit reference. Sync checks that the post is still a draft and compares the modification timestamp with the imported version.
 
-The browser stores the WordPress credentials in local storage after a successful connection. **Disconnect** removes the saved browser entry. Sync is a separate action from BrandGuard's human review workflow.
+BrandGuard keeps the WordPress credentials in memory for the current studio session. **Disconnect** clears the Application Password and unlinks the live draft. Sync is a separate action from BrandGuard's human review workflow.
 
 ## Configuration
 
@@ -143,6 +151,7 @@ The browser stores the WordPress credentials in local storage after a successful
 | `backend/.env` | `FRONTEND_ORIGIN` | `http://localhost:3000`, the exact frontend origin allowed by CORS. |
 | `backend/.env` | `DATABASE_URL` | `sqlite:///./brandguard.db`. This relative path resolves from the backend process's working directory. PostgreSQL is also supported. |
 | `backend/.env` | `DEMO_LOGIN_ENABLED` | `true` enables one-click Creator, Manager, and Legal sessions. |
+| `backend/.env` | `WORDPRESS_LIVE_ENABLED` | Set to `false` for a public demo with only the sample draft. |
 | `backend/.env` | `AUTH_SECRET` | Signing secret for JWTs. Use a long random value for a shared instance. |
 | `backend/.env` | `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` by default. |
 | `backend/.env` | `AUTH_USERS_JSON` | Account records for password login via the API. The web role picker uses demo login. |

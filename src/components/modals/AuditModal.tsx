@@ -29,8 +29,24 @@ interface AuditModalProps extends ModalProps {
   onContextChange: () => void;
   initialText?: string;
   initialGuideline?: GuidelineDocumentResponse;
+  startWithWordPressDemo?: boolean;
   onAuditComplete: (audit: ApiAuditResponse) => void;
   onExportAudit: (id: string) => void;
+}
+
+const WORDPRESS_DEMO_DRAFT: WordPressDraft = {
+  id: 101,
+  title: 'Product launch announcement',
+  content: 'Our software is guaranteed to be 100% bug-free. Talk with our customer support rep to learn more.',
+  excerpt: '',
+  date_modified: '',
+  status: 'draft',
+  link: null,
+};
+
+interface LinkedWordPressDraft {
+  draft: WordPressDraft;
+  config: WordPressConfig | null;
 }
 
 function resolveFindingReference(sourceText: string | undefined, sources: RetrievedSource[]) {
@@ -59,10 +75,10 @@ function resolveFindingReference(sourceText: string | undefined, sources: Retrie
   return null;
 }
 
-export default function AuditModal({ isOpen, onClose, currentRole, onContextChange, initialText, initialGuideline, onAuditComplete, onExportAudit }: AuditModalProps) {
+export default function AuditModal({ isOpen, onClose, currentRole, onContextChange, initialText, initialGuideline, startWithWordPressDemo, onAuditComplete, onExportAudit }: AuditModalProps) {
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'image' | 'document'
   const [customText, setCustomText] = useState(
-    initialText || 'Our product is guaranteed to deliver the best results. Contact our team to learn more.'
+    startWithWordPressDemo ? WORDPRESS_DEMO_DRAFT.content : initialText || 'Our product is guaranteed to deliver the best results. Contact our team to learn more.'
   );
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<TextAuditResponse | null>(null);
@@ -81,15 +97,20 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
   const [proposal, setProposal] = useState<RemediateResponse | null>(null);
   const [auditedText, setAuditedText] = useState<string | null>(null);
   const [isWpModalOpen, setIsWpModalOpen] = useState(false);
-  const [linkedWpDraft, setLinkedWpDraft] = useState<WordPressDraft | null>(null);
-  const [wpConfig, setWpConfig] = useState<WordPressConfig | null>(null);
+  const [wpLink, setWpLink] = useState<LinkedWordPressDraft | null>(
+    startWithWordPressDemo ? { draft: WORDPRESS_DEMO_DRAFT, config: null } : null,
+  );
+  const [demoWpDraft, setDemoWpDraft] = useState(WORDPRESS_DEMO_DRAFT);
   const [isSyncingWp, setIsSyncingWp] = useState(false);
   const [wpSyncMessage, setWpSyncMessage] = useState<{ text: string; link?: string | null } | null>(null);
   const requestVersion = useRef(0);
   const openRef = useRef(isOpen);
   openRef.current = isOpen;
-  const busy = isAuditing || isRemediating || isPreparingGuidelines;
+  const busy = isAuditing || isRemediating || isPreparingGuidelines || isSyncingWp;
   const draftNeedsAudit = auditResult !== null && auditedText !== customText;
+  const canSyncWpDraft = Boolean(currentAuditId && auditedText === customText && proposal === null);
+  const linkedWpDraft = wpLink?.draft;
+  const isWpDemo = wpLink?.config === null;
 
   const discardProposal = () => {
     requestVersion.current += 1;
@@ -103,6 +124,12 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
     setCustomText(text);
     setPreviousText(null);
     setRemediationSummary(null);
+    setWpSyncMessage(null);
+  };
+
+  const unlinkWpDraft = () => {
+    setWpLink(null);
+    setWpSyncMessage(null);
   };
 
   const closeStudio = () => {
@@ -115,30 +142,37 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
     setActiveTab(tab);
   };
 
-  const handleSelectWpDraft = (draft: WordPressDraft, config: WordPressConfig) => {
-    setLinkedWpDraft(draft);
-    setWpConfig(config);
-    setWpSyncMessage(null);
-    const cleanContent = draft.content.replace(/<!-- \/?wp:[^>]* -->/g, '').trim();
-    changeText(cleanContent || draft.title);
+  const handleSelectWpDraft = (draft: WordPressDraft, config: WordPressConfig | null) => {
+    setWpLink({ draft, config });
+    changeText(draft.content);
+    clearAuditContext();
   };
 
   const handleSyncToWordPress = async () => {
-    if (!linkedWpDraft || !wpConfig || !customText.trim() || busy) return;
+    if (!wpLink || !canSyncWpDraft || !currentAuditId || busy) return;
+    const { draft, config } = wpLink;
+    setApiError(null);
+    if (config === null) {
+      const savedDraft = { ...draft, content: customText, date_modified: new Date().toISOString() };
+      setDemoWpDraft(savedDraft);
+      setWpLink({ draft: savedDraft, config });
+      setWpSyncMessage({ text: `Demo draft saved. Audit reference BG-${currentAuditId.slice(0, 8)}.` });
+      return;
+    }
     setIsSyncingWp(true);
     setWpSyncMessage(null);
-    setApiError(null);
     try {
       const res = await syncDraftToWordPress({
-        ...wpConfig,
-        post_id: linkedWpDraft.id,
+        ...config,
+        post_id: draft.id,
         content: customText,
-        title: linkedWpDraft.title,
-        audit_id: currentAuditId || undefined,
+        audit_id: currentAuditId,
         audit_score: auditResult?.score,
+        expected_modified: draft.date_modified || undefined,
       });
+      setWpLink({ draft: { ...draft, date_modified: res.date_modified || '', content: customText }, config });
       setWpSyncMessage({
-        text: `Draft #${res.post_id} updated with audit reference ${res.audit_reference}!`,
+        text: `Draft #${res.post_id} saved. Audit reference ${res.audit_reference}.`,
         link: res.link,
       });
     } catch (err: unknown) {
@@ -190,9 +224,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
 
   if (!isOpen) return null;
 
-  const changeGuideline = (document: GuidelineDocumentResponse | null) => {
-    discardProposal();
-    setGuideline(document);
+  const clearAuditContext = () => {
     setCurrentAuditId(null);
     setLastSavedAuditId(null);
     setAuditResult(null);
@@ -205,7 +237,14 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
     setPreviousText(null);
     setRemediationSummary(null);
     setAuditedText(null);
+    setWpSyncMessage(null);
     onContextChange();
+  };
+
+  const changeGuideline = (document: GuidelineDocumentResponse | null) => {
+    discardProposal();
+    setGuideline(document);
+    clearAuditContext();
   };
 
   const applyApiAudit = (response: ApiAuditResponse, content = customText) => {
@@ -289,6 +328,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
       setCustomText(previousText);
       setPreviousText(null);
       setRemediationSummary(null);
+      setWpSyncMessage(null);
     }
   };
 
@@ -298,6 +338,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
       validateRemediationProposal(proposal, customText);
       setPreviousText(customText);
       setCustomText(content);
+      setWpSyncMessage(null);
       setRemediationSummary(`Applied ${acceptedCount} accepted ${acceptedCount === 1 ? 'edit' : 'edits'} to your draft. Save a revision and re-audit to assess the updated copy.`);
       discardProposal();
     } catch (error) {
@@ -356,6 +397,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
           const savedReport = await getAuditReport(response.id);
           if (version !== requestVersion.current || !openRef.current) return;
           setCustomText(savedReport.content);
+          unlinkWpDraft();
           applyApiAudit(response, savedReport.content);
           setActiveTab('text');
         })
@@ -490,7 +532,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                   <div className="flex items-center gap-2 truncate">
                     <Globe className="w-4 h-4 text-sky-400 shrink-0" />
                     <span className="truncate">
-                      Linked WordPress Draft: <strong>#{linkedWpDraft.id} — {linkedWpDraft.title || 'Untitled Draft'}</strong>
+                      {isWpDemo ? 'WordPress demo draft' : 'Linked WordPress draft'}{' '}
+                      <strong>#{linkedWpDraft.id} · {linkedWpDraft.title || 'Untitled Draft'}</strong>
                     </span>
                     <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono shrink-0">
                       Draft
@@ -500,6 +543,7 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                     <button 
                       type="button" 
                       onClick={() => setIsWpModalOpen(true)} 
+                      disabled={busy}
                       className="text-[11px] text-sky-400 hover:text-sky-300 hover:underline"
                     >
                       Change
@@ -507,7 +551,8 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                     <span className="text-muted">•</span>
                     <button 
                       type="button" 
-                      onClick={() => { setLinkedWpDraft(null); setWpSyncMessage(null); }} 
+                      onClick={unlinkWpDraft}
+                      disabled={busy}
                       className="text-[11px] text-red-400 hover:text-red-300 hover:underline"
                     >
                       Unlink
@@ -516,8 +561,17 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                 </div>
               )}
 
+              {linkedWpDraft && (
+                <p className="mb-2 text-xs text-muted">
+                  {isWpDemo
+                    ? 'Sample workspace. Sync saves a copy in this browser session.'
+                    : 'Sync replaces the linked draft body in WordPress.'}
+                  {!canSyncWpDraft && ' Run an audit on the current copy to enable sync.'}
+                </p>
+              )}
+
               {wpSyncMessage && (
-                <div className="flex items-center justify-between p-2.5 px-3 mb-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-400 animate-fade-in">
+                <div role="status" className="flex flex-wrap items-center justify-between gap-2 p-2.5 px-3 mb-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-400 animate-fade-in">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
                     <span>{wpSyncMessage.text}</span>
@@ -531,6 +585,11 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                     >
                       Preview in WordPress <ArrowRight className="w-3 h-3" />
                     </a>
+                  )}
+                  {isWpDemo && (
+                    <button type="button" onClick={() => setIsWpModalOpen(true)} className="text-emerald-300 hover:underline">
+                      View saved demo draft
+                    </button>
                   )}
                 </div>
               )}
@@ -552,16 +611,15 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
               </span>
 
               <div className="flex items-center gap-2">
-                {linkedWpDraft && wpConfig && (
+                {linkedWpDraft && (
                   <button
                     type="button"
                     onClick={handleSyncToWordPress}
-                    disabled={busy || isSyncingWp || !customText.trim()}
+                    disabled={busy || !canSyncWpDraft}
                     className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
-                    title="Send audited revision back to WordPress draft"
                   >
                     <Globe className={`w-3.5 h-3.5 ${isSyncingWp ? 'animate-spin' : ''}`} />
-                    <span>{isSyncingWp ? 'Syncing to WP...' : 'Sync to WordPress Draft'}</span>
+                    <span>{isSyncingWp ? 'Syncing to WordPress…' : isWpDemo ? 'Sync to Demo Draft' : 'Sync to WordPress Draft'}</span>
                   </button>
                 )}
 
@@ -865,7 +923,9 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
         isOpen={isWpModalOpen}
         onClose={() => setIsWpModalOpen(false)}
         onSelectDraft={handleSelectWpDraft}
-        activeDraftId={linkedWpDraft?.id}
+        onDisconnect={() => { if (wpLink?.config) unlinkWpDraft(); }}
+        activeDraftId={isWpDemo ? undefined : linkedWpDraft?.id}
+        demoDraft={demoWpDraft}
       />
     </div>
   );
