@@ -80,9 +80,9 @@ export default function LiveAuditStudio({
   };
 
   return (
-    <section id="live-audit-studio" className="studio-section page-container">
+    <section id="live-audit-studio" aria-labelledby="sample-review-heading" className="studio-section page-container">
       <div className="section-intro">
-        <div><h2 className="section-heading text-ink">Small edits. Big confidence.</h2></div>
+        <h2 id="sample-review-heading" className="section-heading text-ink" aria-live="polite">{preset.name}</h2>
         <p className="max-w-xs text-xs leading-6 text-secondary">Explore a sample review below, or launch an audit to try your own content.</p>
       </div>
       {/* Outer Mac-like Terminal Frame */}

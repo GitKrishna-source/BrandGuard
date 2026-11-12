@@ -54,7 +54,22 @@ export default function Hero({ activePresetId, onSelectPreset, onScanQuery, onTr
           </div>
           <div className="hero-preset-row">
             <p className="hero-preset-label">General review examples</p>
-            {presets.map((preset) => <button type="button" key={preset.id} data-active={activePresetId === preset.id} aria-pressed={activePresetId === preset.id} className="hero-presets" onClick={() => { setQuery(preset.sampleQuery); onSelectPreset(preset.id); }}>{preset.label}</button>)}
+            {presets.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className="hero-presets"
+                data-active={activePresetId === preset.id}
+                aria-pressed={activePresetId === preset.id}
+                aria-controls="live-audit-studio"
+                onClick={() => {
+                  setQuery(preset.sampleQuery);
+                  onSelectPreset(preset.id);
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
           </div>
         </form>
       </div>

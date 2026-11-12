@@ -82,10 +82,7 @@ export default function App() {
 
   const handleSelectPreset = (id: string) => {
     setActivePresetId(id);
-    const studioEl = document.getElementById('live-audit-studio');
-    if (studioEl) {
-      studioEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    document.getElementById('live-audit-studio')?.scrollIntoView({ block: 'start' });
   };
 
   const openAudit = () => {
