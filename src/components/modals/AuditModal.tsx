@@ -473,22 +473,56 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
         {/* Tab 1: Text Audit */}
         {activeTab === 'text' && (
           <div className="p-6 space-y-5">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label htmlFor="audit-draft" className="text-xs font-sans text-secondary  ">
-                  Draft Content Input:
-                </label>
-                <div className="flex flex-wrap justify-end items-center gap-x-2 gap-y-1">
+            <section
+              aria-labelledby="audit-wordpress-title"
+              className="flex flex-col gap-3 rounded-xl border border-sky-400/40 bg-sky-400/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-sky-400/30 bg-sky-400/15 text-sky-300">
+                  <Globe className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <h3 id="audit-wordpress-title" className="text-sm font-bold text-ink">WordPress drafts</h3>
+                  <p className="mt-0.5 break-words text-xs leading-relaxed text-secondary">
+                    {linkedWpDraft ? (
+                      <>
+                        {isWpDemo ? 'Demo draft' : 'Linked draft'} #{linkedWpDraft.id} ·{' '}
+                        <strong className="font-semibold text-ink">{linkedWpDraft.title || 'Untitled Draft'}</strong>
+                      </>
+                    ) : 'Connect your site or try a sample draft.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 sm:shrink-0">
+                {linkedWpDraft && (
                   <button
                     type="button"
-                    onClick={() => setIsWpModalOpen(true)}
+                    onClick={unlinkWpDraft}
                     disabled={busy}
-                    className="text-[11px] font-sans text-sky-400 hover:text-sky-300 inline-flex items-center gap-1 font-medium bg-sky-500/10 hover:bg-sky-500/20 px-2 py-0.5 rounded border border-sky-500/30 transition-colors"
+                    className="min-h-11 px-1 text-xs font-medium text-red-300 enabled:hover:underline"
                   >
-                    <Globe className="w-3 h-3" />
-                    Import WordPress Draft
+                    Unlink
                   </button>
-                  <span className="text-muted">•</span>
+                )}
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  onClick={() => setIsWpModalOpen(true)}
+                  disabled={busy}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-300 px-3 py-2 text-sm font-bold text-slate-950 transition-colors enabled:hover:bg-sky-200 sm:px-4"
+                >
+                  {linkedWpDraft ? 'Change WordPress Draft' : 'Import WordPress Draft'}
+                  <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                </button>
+              </div>
+            </section>
+
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <label htmlFor="audit-draft" className="text-sm font-semibold text-ink">
+                  Draft Content Input
+                </label>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <button
                     onClick={() => changeText(guideline?.shared_demo ? 'Bootwear Everyday is an everyday walking shoe. Bootwear Everyday costs INR 2,499. Bootwear accepts unworn shoes within 14 days of delivery.' : 'Contact our team to learn more about our services.')}
                     disabled={busy}
@@ -496,7 +530,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                   >
                     {guideline?.shared_demo ? 'Load source-consistent sample' : 'Load Neutral Sample'}
                   </button>
-                  <span className="text-muted">•</span>
                   <button
                     onClick={() => changeText(guideline?.shared_demo ? 'Bootwear Everyday is the #1 performance racing shoe. These kicks are 100% waterproof and cure foot pain. Buy them for INR 1,999 with returns on worn shoes for 30 days.' : 'Our software is the cheapest solution guaranteed 100% bug-free! Talk with our customer support rep.')}
                     disabled={busy}
@@ -515,40 +548,6 @@ export default function AuditModal({ isOpen, onClose, currentRole, onContextChan
                   )}
                 </div>
               </div>
-
-              {linkedWpDraft && (
-                <div className="flex items-center justify-between p-2.5 px-3 mb-2 rounded-xl bg-sky-500/10 border border-sky-500/25 text-xs text-ink animate-fade-in">
-                  <div className="flex items-center gap-2 truncate">
-                    <Globe className="w-4 h-4 text-sky-400 shrink-0" />
-                    <span className="truncate">
-                      {isWpDemo ? 'WordPress demo draft' : 'Linked WordPress draft'}{' '}
-                      <strong>#{linkedWpDraft.id} · {linkedWpDraft.title || 'Untitled Draft'}</strong>
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono shrink-0">
-                      Draft
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2.5 shrink-0 ml-2">
-                    <button 
-                      type="button" 
-                      onClick={() => setIsWpModalOpen(true)} 
-                      disabled={busy}
-                      className="text-[11px] text-sky-400 hover:text-sky-300 hover:underline"
-                    >
-                      Change
-                    </button>
-                    <span className="text-muted">•</span>
-                    <button 
-                      type="button" 
-                      onClick={unlinkWpDraft}
-                      disabled={busy}
-                      className="text-[11px] text-red-400 hover:text-red-300 hover:underline"
-                    >
-                      Unlink
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {linkedWpDraft && (
                 <p className="mb-2 text-xs text-muted">
