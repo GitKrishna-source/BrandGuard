@@ -27,15 +27,19 @@ interface WordPressModalProps extends ModalProps {
   activeDraftId?: number;
 }
 
+const hostedDemoPassword = import.meta.env.VITE_WORDPRESS_DEMO_APP_PASSWORD?.trim() ?? '';
+const demoSiteUrl = import.meta.env.VITE_WORDPRESS_DEMO_SITE_URL?.trim() || (hostedDemoPassword ? 'https://speakthing.s6-tastewp.com' : '');
+const demoUsername = import.meta.env.VITE_WORDPRESS_DEMO_USERNAME?.trim() || (hostedDemoPassword ? 'krishna591' : '');
 const isLocalDemo = import.meta.env.DEV && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
-const demoSiteUrl = isLocalDemo ? import.meta.env.VITE_WORDPRESS_DEMO_SITE_URL?.trim() : undefined;
-const demoUsername = isLocalDemo ? import.meta.env.VITE_WORDPRESS_DEMO_USERNAME?.trim() : undefined;
+const hasDemoCredentials = Boolean(demoSiteUrl && demoUsername && (hostedDemoPassword || isLocalDemo));
 
-function DemoPassword({ disabled }: { disabled: boolean }) {
-  const [password, setPassword] = useState('');
+function DemoCredentials() {
+  const [password, setPassword] = useState(hostedDemoPassword);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    if (hostedDemoPassword) return;
+
     const controller = new AbortController();
 
     async function loadPassword() {
@@ -55,42 +59,59 @@ function DemoPassword({ disabled }: { disabled: boolean }) {
     return () => controller.abort();
   }, []);
 
-  async function copyPassword() {
+  async function copyCredential(label: string, value: string) {
     try {
-      await navigator.clipboard.writeText(password);
-      setMessage('Copied. Paste it into the Application Password field.');
+      await navigator.clipboard.writeText(value);
+      setMessage(`${label} copied.`);
     } catch {
-      setMessage('Select the demo password above and copy it manually.');
+      setMessage(`Select the ${label.toLowerCase()} above and copy it manually.`);
     }
   }
 
+  const credentials = [
+    { label: 'Site URL', value: demoSiteUrl, href: demoSiteUrl },
+    { label: 'Username', value: demoUsername },
+    { label: 'Application Password', value: password },
+  ];
+
   return (
-    <div className="mt-2 rounded-lg border border-surface bg-layer/60 px-3 py-2 text-[11px]">
-      {password && (
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <div className="min-w-0">
-            <p className="text-secondary">Demo password</p>
-            <code className="select-all whitespace-pre-wrap break-words font-mono text-xs text-ink">{password}</code>
+    <div className="rounded-lg border border-line bg-layer/60 px-3 py-2.5">
+      <h4 className="text-xs font-semibold text-ink">WordPress demo credentials</h4>
+      <dl className="mt-1 divide-y divide-line">
+        {credentials.filter(({ value }) => value).map(({ label, value, href }) => (
+          <div key={label} className="grid min-w-0 grid-cols-[1fr_auto] gap-x-3 py-2">
+            <dt className="col-start-1 text-[11px] text-secondary">{label}</dt>
+            <dd className="col-start-1 row-start-2 min-w-0 text-xs">
+              {href ? (
+                <a href={href} target="_blank" rel="noreferrer" className="select-all break-all text-accent hover:underline">
+                  {value}
+                </a>
+              ) : (
+                <code className="select-all whitespace-pre-wrap break-words text-ink">{value}</code>
+              )}
+            </dd>
+            <dd className="col-start-2 row-span-2 row-start-1 self-center">
+              <button
+                type="button"
+                onClick={() => void copyCredential(label, value)}
+                aria-label={`Copy demo ${label.toLowerCase()}`}
+                className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1 text-[11px] font-medium text-accent hover:bg-surface"
+              >
+                <Copy className="h-3 w-3" aria-hidden="true" />
+                Copy
+              </button>
+            </dd>
           </div>
-          <button
-            type="button"
-            onClick={copyPassword}
-            disabled={disabled}
-            className="inline-flex items-center gap-1 font-medium text-accent hover:underline disabled:opacity-50"
-          >
-            <Copy className="h-3 w-3" aria-hidden="true" />
-            Copy demo password
-          </button>
-        </div>
-      )}
-      <p role="status" className="text-secondary empty:hidden">{message || (!password ? 'Loading demo password…' : '')}</p>
+        ))}
+      </dl>
+      <p role="status" className="text-[11px] text-secondary empty:hidden">{message || (!password ? 'Loading demo password…' : '')}</p>
     </div>
   );
 }
 
 export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisconnect, demoDraft, activeDraftId }: WordPressModalProps) {
-  const [siteUrl, setSiteUrl] = useState(demoSiteUrl ?? '');
-  const [username, setUsername] = useState(demoUsername ?? '');
+  const [siteUrl, setSiteUrl] = useState(hasDemoCredentials ? demoSiteUrl : '');
+  const [username, setUsername] = useState(hasDemoCredentials ? demoUsername : '');
   const [appPassword, setAppPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
@@ -113,7 +134,6 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
     username: username.trim(),
     app_password: appPassword.trim(),
   };
-  const isDemoAccount = demoSiteUrl && demoUsername && currentConfig.site_url === demoSiteUrl && currentConfig.username === demoUsername;
 
   const handleConnectAndFetch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -268,6 +288,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
                   <Lock className="w-3.5 h-3.5 text-accent" />
                   Connect to WordPress Site
                 </div>
+                {hasDemoCredentials && <DemoCredentials />}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Site URL */}
@@ -337,7 +358,6 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
                         {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
-                    {isDemoAccount && <DemoPassword disabled={isConnecting} />}
                   </div>
                 </div>
 
