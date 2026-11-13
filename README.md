@@ -143,6 +143,8 @@ Use a WordPress site reachable by the backend over HTTPS and an account with per
 
 BrandGuard keeps the WordPress credentials in memory for the current studio session. **Disconnect** clears the Application Password and unlinks the live draft. Sync is a separate action from BrandGuard's human review workflow.
 
+For a local judge demo, set `VITE_WORDPRESS_DEMO_SITE_URL`, `VITE_WORDPRESS_DEMO_USERNAME`, and `WORDPRESS_DEMO_APP_PASSWORD` in the ignored `.env.development.local` file. Quote the Application Password to preserve its spaces. Restart Vite and open **Import WordPress Draft** on `localhost` to use **Copy demo password**.
+
 ## Configuration
 
 | File | Setting | Local value or purpose |
