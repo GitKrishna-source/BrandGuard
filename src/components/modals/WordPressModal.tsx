@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   X, 
   Globe, 
@@ -31,12 +31,68 @@ const isLocalDemo = import.meta.env.DEV && ['localhost', '127.0.0.1', '[::1]'].i
 const demoSiteUrl = isLocalDemo ? import.meta.env.VITE_WORDPRESS_DEMO_SITE_URL?.trim() : undefined;
 const demoUsername = isLocalDemo ? import.meta.env.VITE_WORDPRESS_DEMO_USERNAME?.trim() : undefined;
 
+function DemoPassword({ disabled }: { disabled: boolean }) {
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadPassword() {
+      try {
+        const response = await fetch('/__local/wordpress-demo-password', { signal: controller.signal });
+        if (response.ok) {
+          setPassword(await response.text());
+        } else {
+          setMessage('The local demo password is unavailable.');
+        }
+      } catch {
+        if (!controller.signal.aborted) setMessage('The local demo password is unavailable.');
+      }
+    }
+
+    void loadPassword();
+    return () => controller.abort();
+  }, []);
+
+  async function copyPassword() {
+    try {
+      await navigator.clipboard.writeText(password);
+      setMessage('Copied. Paste it into the Application Password field.');
+    } catch {
+      setMessage('Select the demo password above and copy it manually.');
+    }
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border border-surface bg-layer/60 px-3 py-2 text-[11px]">
+      {password && (
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <div className="min-w-0">
+            <p className="text-secondary">Demo password</p>
+            <code className="select-all whitespace-pre-wrap break-words font-mono text-xs text-ink">{password}</code>
+          </div>
+          <button
+            type="button"
+            onClick={copyPassword}
+            disabled={disabled}
+            className="inline-flex items-center gap-1 font-medium text-accent hover:underline disabled:opacity-50"
+          >
+            <Copy className="h-3 w-3" aria-hidden="true" />
+            Copy demo password
+          </button>
+        </div>
+      )}
+      <p role="status" className="text-secondary empty:hidden">{message || (!password ? 'Loading demo password…' : '')}</p>
+    </div>
+  );
+}
+
 export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisconnect, demoDraft, activeDraftId }: WordPressModalProps) {
   const [siteUrl, setSiteUrl] = useState(demoSiteUrl ?? '');
   const [username, setUsername] = useState(demoUsername ?? '');
   const [appPassword, setAppPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [demoPasswordMessage, setDemoPasswordMessage] = useState('');
   
   const [isConnected, setIsConnected] = useState(false);
   const [siteName, setSiteName] = useState<string | null>(null);
@@ -57,22 +113,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
     username: username.trim(),
     app_password: appPassword.trim(),
   };
-  const canCopyDemoPassword = demoSiteUrl && demoUsername && currentConfig.site_url === demoSiteUrl && currentConfig.username === demoUsername;
-
-  const handleCopyDemoPassword = async () => {
-    try {
-      const response = await fetch('/__local/wordpress-demo-password');
-      if (!response.ok) {
-        setDemoPasswordMessage('The local demo password is unavailable.');
-        return;
-      }
-
-      await navigator.clipboard.writeText(await response.text());
-      setDemoPasswordMessage('Copied. Paste it into the Application Password field.');
-    } catch {
-      setDemoPasswordMessage('Clipboard access failed. Allow clipboard access and try again.');
-    }
-  };
+  const isDemoAccount = demoSiteUrl && demoUsername && currentConfig.site_url === demoSiteUrl && currentConfig.username === demoUsername;
 
   const handleConnectAndFetch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -84,7 +125,6 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
     setIsConnecting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setDemoPasswordMessage('');
 
     try {
       const res = await connectWordPress(currentConfig);
@@ -242,10 +282,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
                         id="wordpress-site"
                         placeholder="https://your-wordpress-site.com"
                         value={siteUrl}
-                        onChange={(e) => {
-                          setSiteUrl(e.target.value);
-                          setDemoPasswordMessage('');
-                        }}
+                        onChange={(e) => setSiteUrl(e.target.value)}
                         disabled={isConnecting}
                         className="w-full bg-layer border border-surface rounded-xl pl-9 pr-3 py-2 text-xs text-ink placeholder:text-secondary/50 focus:outline-none focus:border-accent"
                         required
@@ -265,10 +302,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
                         id="wordpress-username"
                         placeholder="admin / editor"
                         value={username}
-                        onChange={(e) => {
-                          setUsername(e.target.value);
-                          setDemoPasswordMessage('');
-                        }}
+                        onChange={(e) => setUsername(e.target.value)}
                         disabled={isConnecting}
                         className="w-full bg-layer border border-surface rounded-xl pl-9 pr-3 py-2 text-xs text-ink placeholder:text-secondary/50 focus:outline-none focus:border-accent"
                         required
@@ -278,22 +312,9 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
 
                   {/* Application Password */}
                   <div>
-                    <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2">
-                      <label htmlFor="wordpress-application-password" className="text-[11px] font-medium text-secondary">
-                        Application Password
-                      </label>
-                      {canCopyDemoPassword && (
-                        <button
-                          type="button"
-                          onClick={handleCopyDemoPassword}
-                          disabled={isConnecting}
-                          className="inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:underline disabled:opacity-50"
-                        >
-                          <Copy className="h-3 w-3" aria-hidden="true" />
-                          Copy demo password
-                        </button>
-                      )}
-                    </div>
+                    <label htmlFor="wordpress-application-password" className="mb-1 block text-[11px] font-medium text-secondary">
+                      Application Password
+                    </label>
                     <div className="relative">
                       <Key className="w-4 h-4 text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
                       <input 
@@ -301,10 +322,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
                         id="wordpress-application-password"
                         placeholder="xxxx xxxx xxxx xxxx"
                         value={appPassword}
-                        onChange={(e) => {
-                          setAppPassword(e.target.value);
-                          setDemoPasswordMessage('');
-                        }}
+                        onChange={(e) => setAppPassword(e.target.value)}
                         disabled={isConnecting}
                         autoComplete="off"
                         className="w-full bg-layer border border-surface rounded-xl pl-9 pr-10 py-2 text-xs text-ink placeholder:text-secondary/50 focus:outline-none focus:border-accent"
@@ -319,9 +337,7 @@ export default function WordPressModal({ isOpen, onClose, onSelectDraft, onDisco
                         {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
-                    {canCopyDemoPassword && (
-                      <p role="status" className="mt-1 empty:hidden text-[11px] text-secondary">{demoPasswordMessage}</p>
-                    )}
+                    {isDemoAccount && <DemoPassword disabled={isConnecting} />}
                   </div>
                 </div>
 
