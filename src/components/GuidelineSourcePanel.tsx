@@ -130,7 +130,7 @@ export default function GuidelineSourcePanel({ document, onChange, role, disable
         </details>
       )}
 
-      <details className="group text-xs text-secondary" open={canImportGuidelines && !document}>
+      <details className="group text-xs text-secondary">
         {canImportGuidelines ? (
           <summary className="flex min-h-9 w-fit cursor-pointer list-none items-center gap-2 rounded-lg border border-accent/60 bg-accent/10 px-3 py-1.5 transition-colors hover:border-accent hover:bg-accent/20 [&::-webkit-details-marker]:hidden">
             <ScanText className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
