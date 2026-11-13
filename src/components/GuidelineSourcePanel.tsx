@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, FileCheck2 } from 'lucide-react';
+import { ChevronDown, Download, FileCheck2, ScanText } from 'lucide-react';
 import type { GuidelineDocumentResponse, Role } from '../types';
 import { downloadGuidelinePdf, loadBootwearDemo } from '../lib/api';
 import GuidelineUploadWorkflow from './GuidelineUploadWorkflow';
@@ -34,6 +34,7 @@ export default function GuidelineSourcePanel({ document, onChange, role, disable
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const blocked = busy || disabled;
+  const canImportGuidelines = role !== 'creator';
 
   async function load(task: () => Promise<GuidelineDocumentResponse>) {
     setBusy(true);
@@ -129,10 +130,19 @@ export default function GuidelineSourcePanel({ document, onChange, role, disable
         </details>
       )}
 
-      <details className="text-xs text-secondary" open={role !== 'creator' && !document}>
-        <summary className={role !== 'creator' ? 'cursor-pointer text-sm font-bold text-ink' : 'cursor-pointer font-medium'}>
-          {role !== 'creator' ? 'Import or select scanned PDF / image guidelines and OCR' : 'Select saved brand guideline sources'}
-        </summary>
+      <details className="group text-xs text-secondary" open={canImportGuidelines && !document}>
+        {canImportGuidelines ? (
+          <summary className="flex min-h-9 w-fit cursor-pointer list-none items-center gap-2 rounded-lg border border-accent/60 bg-accent/10 px-3 py-1.5 transition-colors hover:border-accent hover:bg-accent/20 [&::-webkit-details-marker]:hidden">
+            <ScanText className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-sm font-bold text-ink">OCR tools</span>
+              <span className="text-xs text-secondary">Scanned PDFs &amp; images</span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-accent group-open:rotate-180" aria-hidden="true" />
+          </summary>
+        ) : (
+          <summary className="cursor-pointer font-medium">Select saved brand guideline sources</summary>
+        )}
         <div className="mt-3">
           <GuidelineUploadWorkflow
             role={role}
