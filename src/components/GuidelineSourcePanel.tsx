@@ -130,7 +130,7 @@ export default function GuidelineSourcePanel({ document, onChange, role, disable
       )}
 
       <details className="text-xs text-secondary" open={role !== 'creator' && !document}>
-        <summary className={role !== 'creator' ? 'cursor-pointer font-bold' : 'cursor-pointer font-medium'}>
+        <summary className={role !== 'creator' ? 'cursor-pointer text-sm font-bold text-ink' : 'cursor-pointer font-medium'}>
           {role !== 'creator' ? 'Import or select scanned PDF / image guidelines and OCR' : 'Select saved brand guideline sources'}
         </summary>
         <div className="mt-3">
